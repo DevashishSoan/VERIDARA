@@ -35,6 +35,8 @@ jobs:
           npm run build
         env:
           VITE_API_URL: https://brian-shuttle-congress-harbour.trycloudflare.com
+          VITE_SUPABASE_URL: https://rwcozsavcafomcqmkzqo.supabase.co
+          VITE_SUPABASE_ANON_KEY: sb_publishable_I83gwH3ihoc2dCQFNgdb7A_YhTszilm
 
       - name: Deploy 🚀
         uses: JamesIves/github-pages-deploy-action@v4
