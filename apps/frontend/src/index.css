@@ -1,0 +1,337 @@
+@import "tailwindcss";
+
+@theme {
+  --color-background: #0A0A0A;
+  --color-surface: #111111;
+  --color-surface-accent: #181818;
+  --color-surface-layered: #060606;
+  --color-primary: #10B981;
+  --color-primary-deep: #059669;
+  --color-primary-glow: rgba(16, 185, 129, 0.25);
+  --color-primary-glow-soft: rgba(16, 185, 129, 0.08);
+  --color-text-muted: #A1A1AA;
+  --color-risk: #EF4444;
+
+  --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
+  --font-display: 'Outfit', sans-serif;
+  --font-data: 'IBM Plex Mono', 'SF Mono', monospace;
+
+  --shadow-emerald-glow: 0 0 60px -10px rgba(16, 185, 129, 0.4), 0 0 120px -20px rgba(16, 185, 129, 0.15);
+  --shadow-card-idle: 0 20px 60px rgba(0, 0, 0, 0.8), 0 0 1px rgba(255, 255, 255, 0.05);
+  --shadow-card-hover: 0 30px 80px rgba(0, 0, 0, 0.9), 0 0 40px -10px rgba(16, 185, 129, 0.2);
+}
+
+/* --- Base Layer --- */
+@layer base {
+  * {
+    @apply m-0 p-0;
+    box-sizing: border-box;
+  }
+
+  body {
+    @apply bg-background text-white antialiased min-h-screen overflow-x-hidden;
+    font-family: var(--font-sans);
+    font-feature-settings: 'ss01' on, 'ss02' on, 'cv01' on;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+
+  ::selection {
+    background: rgba(16, 185, 129, 0.3);
+    color: #fff;
+  }
+}
+
+/* --- Components Layer --- */
+/* ── Primary CTA Button ── */
+.btn-cinematic-primary {
+  @apply px-10 py-5 text-white font-black uppercase text-[10px] tracking-[0.3em] rounded-full flex items-center justify-center gap-3 border border-primary/30 transition-all duration-300 ease-out relative overflow-hidden cursor-pointer;
+  background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-deep) 100%);
+  box-shadow: var(--shadow-emerald-glow);
+}
+
+.btn-cinematic-primary:hover {
+  @apply scale-[1.03] border-primary/60;
+  box-shadow: 0 0 80px -10px rgba(16, 185, 129, 0.5), 0 0 160px -30px rgba(16, 185, 129, 0.2);
+}
+
+.btn-cinematic-primary:active {
+  @apply scale-95;
+}
+
+/* Shimmer sweep */
+.btn-cinematic-primary::after {
+  content: '';
+  @apply absolute inset-0 pointer-events-none;
+  background: linear-gradient(105deg, transparent 40%, rgba(255, 255, 255, 0.15) 50%, transparent 60%);
+  transform: translateX(-100%);
+  transition: transform 0.7s ease-in-out;
+}
+
+.btn-cinematic-primary:hover::after {
+  transform: translateX(100%);
+}
+
+/* ── Outline Button ── */
+.btn-cinematic-outline {
+  @apply px-10 py-5 text-white/70 font-black uppercase text-[10px] tracking-[0.3em] rounded-full flex items-center justify-center gap-3 border border-white/10 bg-white/[0.02] hover:border-primary/40 hover:text-white hover:bg-primary/5 active:scale-95 transition-all duration-300 cursor-pointer;
+}
+
+/* ── Glass Card ── */
+.glass-card-premium {
+  @apply bg-white/[0.02] backdrop-blur-2xl border border-white/[0.06] rounded-[32px] transition-all duration-500 ease-out overflow-hidden relative;
+  box-shadow: var(--shadow-card-idle);
+}
+
+.glass-card-premium:hover {
+  @apply border-primary/20;
+  box-shadow: var(--shadow-card-hover);
+}
+
+/* ── Glass Card with Edge Glow ── */
+.glass-card-edge-glow {
+  @apply bg-white/[0.02] backdrop-blur-2xl border border-white/[0.06] rounded-[32px] transition-all duration-500 ease-out overflow-hidden relative;
+  box-shadow: var(--shadow-card-idle);
+}
+
+.glass-card-edge-glow:hover {
+  @apply border-primary/30 -translate-y-2;
+  box-shadow:
+    var(--shadow-card-hover),
+    inset 0 1px 0 rgba(16, 185, 129, 0.15),
+    0 0 0 1px rgba(16, 185, 129, 0.1);
+}
+
+/* ── Premium Access Console Button ── */
+.btn-access-console {
+  @apply px-8 py-3 bg-primary text-white font-bold uppercase text-[11px] tracking-widest rounded-full transition-all duration-300 relative overflow-hidden flex items-center justify-center gap-2;
+  background: linear-gradient(135deg, #10B981 0%, #059669 100%);
+  box-shadow: 0 4px 15px rgba(16, 185, 129, 0.2);
+}
+
+.btn-access-console:hover {
+  @apply -translate-y-0.5;
+  box-shadow: 0 8px 25px rgba(16, 185, 129, 0.4);
+  background: linear-gradient(135deg, #34D399 0%, #10B981 100%);
+}
+
+.btn-access-console:active {
+  @apply scale-95 translate-y-0;
+}
+
+/* ── Floating Nav Bar ── */
+.nav-island-premium {
+  @apply fixed top-8 left-1/2 -translate-x-1/2 z-[100] px-10 py-4 bg-background/70 backdrop-blur-3xl backdrop-saturate-150 border border-white/[0.06] rounded-full flex items-center gap-14;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6), 0 0 1px rgba(255, 255, 255, 0.05);
+}
+
+/* ── Premium Nav Link ── */
+.nav-link-premium {
+  @apply relative text-[10px] font-bold uppercase tracking-[0.2em] text-white/40 hover:text-white transition-all duration-300 hover:scale-[1.05] py-2 flex flex-col items-center;
+}
+
+.nav-link-premium::after {
+  content: '';
+  @apply absolute bottom-0 w-0 h-[1.5px] bg-primary transition-all duration-300 ease-out shadow-[0_0_8px_rgba(16,185,129,0.8)];
+}
+
+.nav-link-premium:hover::after {
+  @apply w-full;
+}
+
+/* ── Metallic Brand Typography ── */
+.text-metallic {
+  @apply font-black tracking-tighter;
+  background: linear-gradient(180deg,
+      #FFFFFF 0%,
+      #E4E4E7 35%,
+      #A1A1AA 70%,
+      #71717A 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* ── Mesh Background Texture ── */
+.mesh-texture {
+  @apply absolute inset-0 pointer-events-none z-[-1];
+  opacity: 0.3;
+  background-image:
+    radial-gradient(at 0% 0%, rgba(16, 185, 129, 0.08) 0, transparent 50%),
+    radial-gradient(at 80% 20%, rgba(16, 185, 129, 0.04) 0, transparent 50%),
+    radial-gradient(at 50% 100%, rgba(16, 185, 129, 0.06) 0, transparent 50%);
+}
+
+/* Slow Mesh Animation */
+@keyframes slow-mesh {
+  0% {
+    transform: scale(1) translate(0%, 0%);
+    opacity: 0.1;
+  }
+
+  33% {
+    transform: scale(1.2) translate(5%, 2%);
+    opacity: 0.15;
+  }
+
+  66% {
+    transform: scale(0.9) translate(-3%, 4%);
+    opacity: 0.1;
+  }
+
+  100% {
+    transform: scale(1) translate(0%, 0%);
+    opacity: 0.1;
+  }
+}
+
+.nav-mesh-bg {
+  @apply absolute inset-0 rounded-full pointer-events-none overflow-hidden;
+  background: radial-gradient(circle at 50% 50%, var(--color-primary-glow) 0%, transparent 70%);
+  filter: blur(40px);
+  animation: slow-mesh 20s ease-in-out infinite;
+  mix-blend-mode: soft-light;
+}
+
+/* --- Utilities Layer --- */
+
+/* ── Spotlights ── */
+.spotlight-hero {
+  @apply absolute top-0 left-1/2 -translate-x-1/2 w-[160%] aspect-square max-w-[2000px] pointer-events-none z-0;
+  background: radial-gradient(ellipse at 50% 0%,
+      rgba(16, 185, 129, 0.15) 0%,
+      rgba(16, 185, 129, 0.05) 30%,
+      transparent 60%);
+}
+
+.spotlight-bottom {
+  @apply absolute bottom-0 left-1/4 w-[80%] aspect-square pointer-events-none z-0;
+  background: radial-gradient(circle at 30% 80%,
+      rgba(16, 185, 129, 0.08) 0%,
+      transparent 50%);
+}
+
+/* ── Floating Glow ── */
+.floating-glow {
+  @apply absolute pointer-events-none blur-[120px] opacity-20 z-[-1];
+  background: radial-gradient(circle, var(--color-primary) 0%, transparent 70%);
+}
+
+/* ── Film-Grain Noise Overlay ── */
+.noise-overlay {
+  @apply fixed inset-0 z-[999] pointer-events-none mix-blend-overlay;
+  opacity: 0.018;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+/* ── 3D Perspective Containers ── */
+.perspective-1200 {
+  perspective: 1200px;
+}
+
+.preserve-3d {
+  transform-style: preserve-3d;
+}
+
+/* ── Font Condensed ── */
+.font-condensed {
+  font-stretch: 75%;
+  letter-spacing: -0.06em;
+}
+
+/* ── Depth Blur Variants ── */
+.depth-blur {
+  backdrop-filter: blur(12px) saturate(1.4);
+}
+
+.depth-blur-heavy {
+  backdrop-filter: blur(40px) saturate(1.6);
+}
+
+/* ── Emerald Glow Shadow ── */
+.shadow-emerald-glow {
+  box-shadow: var(--shadow-emerald-glow);
+}
+
+/* ── Cursor Glow ── */
+.cursor-glow {
+  @apply fixed w-[500px] h-[500px] rounded-full pointer-events-none blur-[150px] z-[998] -translate-x-1/2 -translate-y-1/2;
+  opacity: 0.04;
+  background: radial-gradient(circle, var(--color-primary) 0%, transparent 70%);
+  will-change: transform;
+  transition: left 0.1s ease-out, top 0.1s ease-out;
+}
+
+/* ── Data Pulse Animation ── */
+@keyframes data-pulse {
+
+  0%,
+  100% {
+    opacity: 0.4;
+    transform: scale(1);
+  }
+
+  50% {
+    opacity: 1;
+    transform: scale(1.15);
+  }
+}
+
+.animate-data-pulse {
+  animation: data-pulse 2s ease-in-out infinite;
+}
+
+/* ── Shimmer Sweep ── */
+@keyframes shimmer-sweep {
+  from {
+    transform: translateX(-100%);
+  }
+
+  to {
+    transform: translateX(100%);
+  }
+}
+
+.shimmer-on-hover {
+  @apply relative overflow-hidden;
+}
+
+.shimmer-on-hover::before {
+  content: '';
+  @apply absolute inset-0 pointer-events-none z-10;
+  background: linear-gradient(105deg, transparent 40%, rgba(255, 255, 255, 0.08) 50%, transparent 60%);
+  transform: translateX(-100%);
+  transition: transform 0.8s ease-in-out;
+}
+
+.shimmer-on-hover:hover::before {
+  transform: translateX(100%);
+}
+
+/* ── Grid Line Pattern ── */
+.grid-line-pattern {
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+  background-size: 40px 40px;
+}
+
+/* --- Scrollbar --- */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--color-background);
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: 999px;
+  border: 2px solid var(--color-background);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(16, 185, 129, 0.25);
+}
