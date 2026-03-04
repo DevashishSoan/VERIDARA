@@ -15,6 +15,30 @@ interface DashboardProps {
 const ForensicDashboard: React.FC<DashboardProps> = ({ result, onClose }) => {
     const isSynthetic = result.score < 50;
 
+    const handleDownload = async () => {
+        try {
+            const VITE_API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+            const response = await fetch(`${VITE_API_URL}/v1/jobs/${result.id}/report`, {
+                method: 'GET',
+            });
+
+            if (!response.ok) throw new Error('Report generation failed');
+
+            const blob = await response.blob();
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `VERIDARA_Report_${result.id.slice(0, 8)}.pdf`;
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(url);
+            document.body.removeChild(a);
+        } catch (error) {
+            console.error('Failed to download PDF report', error);
+            alert('Could not download the forensic report at this time.');
+        }
+    };
+
     return (
         <div className="space-y-12">
             {/* Header */}
@@ -128,7 +152,10 @@ const ForensicDashboard: React.FC<DashboardProps> = ({ result, onClose }) => {
 
             {/* Bottom Action */}
             <div className="pt-10">
-                <button className="btn-cinematic-primary w-full py-8 text-[11px] flex items-center justify-center gap-4">
+                <button
+                    onClick={handleDownload}
+                    className="btn-cinematic-primary w-full py-8 text-[11px] flex items-center justify-center gap-4 hover:scale-[1.02] transition-transform"
+                >
                     <Download className="w-5 h-5" />
                     DOWNLOAD CERTIFIED FORENSIC PROOF (PDF)
                 </button>
