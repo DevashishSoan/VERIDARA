@@ -1,7 +1,7 @@
 # 🛡️ VERIDARA
 ### **The Sovereign Standard for Digital Content Authentication**
 
-[![Deploy on Railway](https://railway.app/button.svg)](https://railway.app/template/new?repo=https://github.com/DevashishSoan/VERIDARA)
+[![Deploy on Railway](https://railway.app/button.svg)](https://railway.app/new/import?repo=https://github.com/DevashishSoan/VERIDARA)
 
 **VERIDARA** is a production-grade, multi-modal forensic platform designed to verify the authenticity of digital media in an era of sophisticated generative AI. Moving beyond simple heuristics, VERIDARA utilizes deep signal processing to detect the "hidden fingerprints" left behind by GANs, Diffusion models, and neural voice synthesis.
 
