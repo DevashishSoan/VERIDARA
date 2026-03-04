@@ -1,0 +1,70 @@
+version: '3.8'
+
+services:
+  # ─── API Gateway (Node.js) ─────────────────────────────────────────
+  api-gateway:
+    build:
+      context: ./apps/api-gateway
+      dockerfile: Dockerfile
+    ports:
+      - "3001:3001"
+    environment:
+      - NODE_ENV=production
+      - PORT=3001
+      - SUPABASE_URL=${SUPABASE_URL}
+      - SUPABASE_ANON_KEY=${SUPABASE_ANON_KEY}
+      - JWT_SECRET=${JWT_SECRET}
+      - INGRET_SERVICE_URL=http://ingest-service:8001
+    depends_on:
+      - ingest-service
+    networks:
+      - truthlens-net
+
+  # ─── Ingest Service (Python/FastAPI) ──────────────────────────────
+  ingest-service:
+    build:
+      context: ./services/ingest-service
+      dockerfile: Dockerfile
+    ports:
+      - "8001:8001"
+    volumes:
+      - shared-storage:/app/storage/uploads
+    environment:
+      - ML_ORCH_URL=http://ml-orchestrator:8002
+    depends_on:
+      - ml-orchestrator
+    networks:
+      - truthlens-net
+
+  # ─── ML Orchestrator (Python/FastAPI) ──────────────────────────────
+  ml-orchestrator:
+    build:
+      context: ./services/ml-specialists
+      dockerfile: Dockerfile
+    ports:
+      - "8002:8002"
+    volumes:
+      - shared-storage:/app/storage/uploads
+    networks:
+      - truthlens-net
+
+  # ─── Frontend (Static Build) ───────────────────────────────────────
+  # In a real production setup, this would be served by Nginx or a CDN.
+  # For Dockerized dev/staging:
+  frontend:
+    build:
+      context: ./apps/frontend
+      dockerfile: Dockerfile
+    ports:
+      - "5173:5173"
+    environment:
+      - VITE_API_URL=http://localhost:3001
+    networks:
+      - truthlens-net
+
+networks:
+  truthlens-net:
+    driver: bridge
+
+volumes:
+  shared-storage:

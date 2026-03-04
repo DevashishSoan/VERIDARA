@@ -1,0 +1,21 @@
+{
+    "$schema": "https://railway.app/railway.schema.json",
+    "services": {
+        "api-gateway": {
+            "source": "apps/api-gateway",
+            "watch": true
+        },
+        "ingest-service": {
+            "source": "services/ingest-service",
+            "watch": true
+        },
+        "ml-orchestrator": {
+            "source": "services/ml-specialists",
+            "watch": true
+        },
+        "frontend": {
+            "source": "apps/frontend",
+            "watch": true
+        }
+    }
+}
