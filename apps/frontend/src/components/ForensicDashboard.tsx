@@ -120,7 +120,7 @@ const ForensicDashboard: React.FC<DashboardProps> = ({ result, onClose }) => {
 
             {/* Analysis Layers */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {result.layers.map((layer, i) => (
+                {result.layers.filter(l => l.value > 0 || !['Temporal', 'Audio', 'Semantic'].includes(l.label)).map((layer, i) => (
                     <motion.div
                         key={layer.label}
                         initial={{ opacity: 0, y: 20 }}

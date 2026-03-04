@@ -297,6 +297,23 @@ const App: React.FC = () => {
     uploadFile();
   };
 
+  const handleDemoUpload = () => {
+    setIsAnalyzing(true);
+    setAnalysisError(null);
+    setTimeout(() => {
+      setIsAnalyzing(false);
+      setResult({
+        id: "demo-vdr-" + Math.random().toString(36).substring(2, 10).toUpperCase(),
+        score: 96,
+        verdict: 'Authentic',
+        layers: [
+          { label: 'Visual', value: 98 },
+          { label: 'Metadata', value: 92 }
+        ]
+      });
+    }, 2500);
+  };
+
   // ─── Stagger animation presets ───
   const stagger = {
     hidden: {},
@@ -381,12 +398,12 @@ const App: React.FC = () => {
               className="flex flex-col sm:flex-row gap-6 justify-center lg:justify-start"
             >
               <label className="cursor-pointer">
-                <input type="file" className="hidden" onChange={handleFileUpload} />
+                <input id="demo-upload-input" type="file" className="hidden" onChange={handleFileUpload} />
                 <div className="btn-cinematic-primary py-6 px-14 text-[10px] group">
                   <Scan size={18} className="group-hover:rotate-90 transition-transform duration-500" /> ANALYZE MEDIA
                 </div>
               </label>
-              <button className="btn-cinematic-outline py-6 px-14 text-[10px]">
+              <button onClick={handleDemoUpload} className="btn-cinematic-outline py-6 px-14 text-[10px]">
                 VIEW SAMPLE REPORT
               </button>
             </motion.div>
@@ -598,7 +615,7 @@ const App: React.FC = () => {
                   <div className="text-[9px] font-black uppercase tracking-[0.3em] text-white/25">Accuracy SLA</div>
                 </div>
                 <div className="space-y-2">
-                  <div className="text-primary font-black text-3xl font-data">AES-4096</div>
+                  <div className="text-primary font-black text-3xl font-data">AES-256</div>
                   <div className="text-[9px] font-black uppercase tracking-[0.3em] text-white/25">Depth Encryption</div>
                 </div>
               </div>
@@ -629,10 +646,10 @@ const App: React.FC = () => {
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             {[
-              { icon: Lock, title: "Zero Retention", desc: "Binary media data is purged instantly after neural scanning." },
-              { icon: Shield, title: "Hardened Vault", desc: "Institutional grade hardware security modules (HSM) for keys." },
-              { icon: Server, title: "SOC 2 Type II", desc: "Audited security controls for absolute trust and compliance." },
-              { icon: Database, title: "Immortal Ledger", desc: "Optional blockchain anchoring for immutable proof-of-record." },
+              { icon: Lock, title: "Zero Retention", desc: "Binary media data is purged instantly after neural scanning. No traces left." },
+              { icon: Shield, title: "GDPR Compliant", desc: "Built with privacy-by-design principles fulfilling strict EU mandates." },
+              { icon: Server, title: "DPDP Act 2023", desc: "Fully compliant with Indian data protection laws for enterprise operations." },
+              { icon: Database, title: "Immortal Ledger", desc: "Optional blockchain anchoring for immutable cryptographic proof-of-record." },
             ].map((s, i) => (
               <motion.div
                 key={i}
@@ -673,6 +690,9 @@ const App: React.FC = () => {
                 { r: "Journalism", d: "Verify citizen source media with definitive forensic signals." },
                 { r: "Legal Teams", d: "Prepare authenticated evidence for high-stakes litigation." },
                 { r: "HR / Corporate", d: "Verify identity in remote-first global hiring pipelines." },
+                { r: "Trust & Safety", d: "Automate deepfake detection for social platform moderation." },
+                { r: "Defamation Targets", d: "Secure cryptographic proof to combat synthetic character assassination." },
+                { r: "Venture Capital", d: "Due diligence on founder claims and video-based pitches." },
               ].map((u, i) => (
                 <motion.div
                   key={i}
@@ -716,19 +736,34 @@ const App: React.FC = () => {
             Verify<br />the Truth.
           </motion.h2>
 
-          <motion.button
+          <motion.div
             initial={{ opacity: 0, y: 30 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
             transition={{ delay: 0.3 }}
-            className="btn-cinematic-primary py-8 px-16 text-sm font-black group relative overflow-hidden"
+            className="flex flex-col items-center gap-8"
           >
-            <span className="relative z-10 flex items-center gap-3">
-              START FREE EVALUATION <ArrowRight size={20} className="group-hover:translate-x-1.5 transition-transform duration-300" />
-            </span>
-            {/* Bottom progress bar on hover */}
-            <span className="absolute inset-x-0 bottom-0 h-[2px] bg-white/20 scale-x-0 group-hover:scale-x-100 transition-transform origin-left duration-700" />
-          </motion.button>
+            <button
+              onClick={() => {
+                const element = document.getElementById('demo-upload-input');
+                if (element) {
+                  element.click();
+                }
+              }}
+              className="btn-cinematic-primary py-8 px-16 text-sm font-black group relative overflow-hidden"
+            >
+              <span className="relative z-10 flex items-center gap-3">
+                START FREE EVALUATION <ArrowRight size={20} className="group-hover:translate-x-1.5 transition-transform duration-300" />
+              </span>
+              {/* Bottom progress bar on hover */}
+              <span className="absolute inset-x-0 bottom-0 h-[2px] bg-white/20 scale-x-0 group-hover:scale-x-100 transition-transform origin-left duration-700" />
+            </button>
+            <div className="flex items-center gap-4 text-white/40 text-[10px] font-black tracking-[0.2em] uppercase">
+              <span>Free tier available</span>
+              <div className="w-1 h-1 rounded-full bg-white/20" />
+              <span>No credit card required</span>
+            </div>
+          </motion.div>
         </div>
       </section>
 
