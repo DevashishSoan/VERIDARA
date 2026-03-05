@@ -35,7 +35,11 @@ const getAuthorizedClient = (token) => {
 const upload = multer({ storage: multer.memoryStorage() });
 
 app.use(helmet());
-app.use(cors());
+app.use(cors({
+    origin: ['https://devashishsoan.github.io', 'http://localhost:5173'],
+    methods: ['GET', 'POST', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization']
+}));
 app.use(morgan('dev'));
 app.use(express.json());
 
