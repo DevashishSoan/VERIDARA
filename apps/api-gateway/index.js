@@ -44,6 +44,10 @@ app.use(cors({
 app.use(morgan('dev'));
 app.use(express.json());
 
+app.get('/health', (req, res) => {
+    res.json({ status: 'up', timestamp: new Date(), version: '1.1.0' });
+});
+
 const jobCache = new Map();
 
 /**
