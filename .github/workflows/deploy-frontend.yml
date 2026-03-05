@@ -34,7 +34,7 @@ jobs:
           cd apps/frontend
           npm run build
         env:
-          VITE_API_URL: https://kind-dragon-promoted-drew.trycloudflare.com
+          VITE_API_URL: https://provide-superintendent-respiratory-consent.trycloudflare.com
           VITE_SUPABASE_URL: https://rwcozsavcafomcqmkzqo.supabase.co
           VITE_SUPABASE_ANON_KEY: sb_publishable_I83gwH3ihoc2dCQFNgdb7A_YhTszilm
 
