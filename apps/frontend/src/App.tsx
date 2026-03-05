@@ -291,9 +291,20 @@ const App: React.FC = () => {
             const pollRes = await fetch(`${apiUrl}/v1/jobs/${id}`, {
               headers: { 'Authorization': `Bearer ${session.access_token}` },
             });
-            const jobData = await pollRes.json();
-            const attr = jobData.data.attributes;
+            if (pollRes.status === 304) {
+              // Not modified, continues polling
+              setTimeout(() => pollForResult(id, attempts + 1), 1000);
+              return;
+            }
 
+            const jobData = await pollRes.json();
+            if (!jobData || !jobData.data) {
+              console.warn('Incomplete job data received:', jobData);
+              setTimeout(() => pollForResult(id, attempts + 1), 1000);
+              return;
+            }
+
+            const attr = jobData.data.attributes;
             if (attr.status === 'complete') {
               setResult({
                 score: attr.trust_score,

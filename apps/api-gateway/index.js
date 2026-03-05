@@ -18,6 +18,7 @@ const { createClient } = require('@supabase/supabase-js');
 dotenv.config();
 
 const app = express();
+app.disable('etag');
 const PORT = process.env.PORT || 3001;
 const INGEST_SERVICE_URL = process.env.INGEST_SERVICE_URL || 'http://localhost:8001';
 const SUPABASE_URL = process.env.SUPABASE_URL;

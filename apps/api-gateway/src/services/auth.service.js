@@ -10,20 +10,26 @@ class AuthService {
      */
     async verifySupabaseToken(token) {
         try {
-            console.log('[AUTH] Verifying token:', token?.substring(0, 20) + '...');
+            if (!token) return null;
+            console.log(`[AUTH] Verifying token: ${token.substring(0, 15)}...`);
+
             const { data: { user }, error } = await supabase.auth.getUser(token);
+
             if (error) {
-                console.error('[AUTH] Supabase getUser error:', error.message, error.status);
-                throw error;
+                console.error(`[AUTH] Supabase error [${error.status}]: ${error.message}`);
+                // If it's a 401 from supabase, it means the token is truly invalid/expired
+                return null;
             }
+
             if (!user) {
-                console.error('[AUTH] No user returned from Supabase');
-                throw new Error('No user');
+                console.warn('[AUTH] Token valid but no user profile found');
+                return null;
             }
-            console.log('[AUTH] User verified:', user.id, user.email);
+
+            console.log(`[AUTH] Success: ${user.email} verified`);
             return user;
         } catch (err) {
-            console.error('[AUTH] Token verification failed:', err.message);
+            console.error('[AUTH] Critical verification failure:', err.message);
             return null;
         }
     }
