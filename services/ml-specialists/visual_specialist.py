@@ -22,8 +22,8 @@ class VisualSpecialist:
 
             # Speed up: Resize if huge (keep enough resolution for noise analysis)
             h, w = img.shape[:2]
-            if max(h, w) > 1024:
-                scale = 1024 / max(h, w)
+            if max(h, w) > 800:
+                scale = 800 / max(h, w)
                 img = cv2.resize(img, (int(w * scale), int(h * scale)), interpolation=cv2.INTER_AREA)
 
             # 2. Extract Noise Residuals (Original - Median Filtered)

@@ -293,7 +293,7 @@ const App: React.FC = () => {
             });
             if (pollRes.status === 304) {
               // Not modified, continues polling
-              setTimeout(() => pollForResult(id, attempts + 1), 1000);
+              setTimeout(() => pollForResult(id, attempts + 1), 600);
               return;
             }
 
@@ -320,7 +320,7 @@ const App: React.FC = () => {
               throw new Error('Forensic engine reported a processing failure.');
             } else {
               // Still processing, poll again in 1s
-              setTimeout(() => pollForResult(id, attempts + 1), 1000);
+              setTimeout(() => pollForResult(id, attempts + 1), 600);
             }
           } catch (err: any) {
             console.error('Polling error:', err);

@@ -44,6 +44,8 @@ app.use(cors({
 app.use(morgan('dev'));
 app.use(express.json());
 
+const jobCache = new Map();
+
 /**
  * CORE ANALYSIS ROUTES
  */
@@ -55,8 +57,6 @@ app.post('/v1/analyze', protect, upload.single('file'), async (req, res) => {
 
     if (!file && !req.body.url) return res.status(400).json({ error: 'No media file or URL provided' });
 
-    console.log(`[${new Date().toISOString()}] Analysis request received from user ${userId}`);
-
     try {
         const authHeader = req.headers.authorization;
         const token = authHeader.split(' ')[1];
@@ -65,84 +65,94 @@ app.post('/v1/analyze', protect, upload.single('file'), async (req, res) => {
         let jobData;
         let filePath = '';
 
-        // 1. Ingest (Must be sync as it provides the job_id)
+        // 1. Ingest
         if (file) {
-            const ingestStart = Date.now();
             const form = new FormData();
             form.append('file', file.buffer, { filename: file.originalname, contentType: file.mimetype });
             const response = await axios.post(`${INGEST_SERVICE_URL}/ingest`, form, { headers: { ...form.getHeaders() } });
             jobData = response.data;
             filePath = jobData.s3_key;
-            console.log(`[GATEWAY] Ingest completed in ${Date.now() - ingestStart}ms. JobID: ${jobData.job_id}`);
 
-            // 2. Create initial DB record
-            await resultsService.createInvestigation(userId, jobData, client);
+            // Background DB Init
+            resultsService.createInvestigation(userId, jobData, client).catch(e => console.error('DB Async Init Fail:', e.message));
         } else {
             jobData = { job_id: `url_${Date.now()}`, status: 'received' };
         }
 
-        // 3. Return 202 Accepted IMMEDIATELY to prevent frontend timeout
+        // Initialize Memory Cache for 0ms polling overhead
+        jobCache.set(jobData.job_id, {
+            status: 'processing',
+            message: 'Forensic engine engaged.'
+        });
+
+        // 3. Return 202 Instant
         res.status(202).json({
             data: {
                 id: jobData.job_id,
                 type: 'job',
-                attributes: {
-                    status: 'processing',
-                    message: 'Forensic analysis pipeline initialized. Polling required.'
-                }
+                attributes: { status: 'processing', message: 'Forensic engine engaged.' }
             }
         });
 
-        // 4. Background Processing (Not-awaited)
+        // 4. Background Processing
         (async () => {
             try {
-                const mlStart = Date.now();
                 const ML_ORCHESTRATOR_URL = process.env.ML_ORCHESTRATOR_URL || 'http://localhost:8002';
-                console.log(`[GATEWAY] Triggering ML Orchestrator for ${jobData.job_id}...`);
-
                 const mlResponse = await axios.post(`${ML_ORCHESTRATOR_URL}/analyze`, {
                     job_id: jobData.job_id,
                     file_path: filePath,
                     media_type: media_type
                 });
-                console.log(`[GATEWAY] ML Analysis for ${jobData.job_id} finished in ${Date.now() - mlStart}ms`);
 
                 const layerScores = mlResponse.data.layers;
                 const resultStats = aggregator.calculateTrustScore(media_type, layerScores);
 
-                // 5. Save final result in background
-                const dbStart = Date.now();
+                // Update Cache immediately
+                jobCache.set(jobData.job_id, {
+                    status: 'complete',
+                    trust_score: resultStats.trust_score,
+                    verdict: resultStats.verdict,
+                    layers: layerScores
+                });
+
+                // Silent Persistence
                 await resultsService.saveResult(jobData.job_id, {
                     ...resultStats,
                     layers: layerScores
-                }, client);
-                console.log(`[GATEWAY] Final results saved for ${jobData.job_id} in ${Date.now() - dbStart}ms. Total flow: ${Date.now() - startTime}ms`);
+                }, client).catch(e => console.error('Silent Persistence Delay:', e.message));
 
             } catch (bgError) {
-                console.error(`[GATEWAY] Background Analysis Error for ${jobData.job_id}:`, bgError.message);
-                // Update job status to error if possible
-                try {
-                    await client.from('analysis_jobs').update({ status: 'failed' }).eq('id', jobData.job_id);
-                } catch (dbErr) {
-                    console.error('Failed to update job status to error:', dbErr.message);
-                }
+                console.error(`[GATEWAY] Background worker error:`, bgError.message);
+                jobCache.set(jobData.job_id, { status: 'failed' });
             }
         })();
 
     } catch (err) {
-        console.error('Analysis Initiation Error:', err.response?.data || err.message);
-        res.status(500).json({ error: 'Failed to initiate analysis: ' + (err.response?.data?.detail || err.message) });
+        res.status(500).json({ error: 'System busy. Retry in a few seconds.' });
     }
 });
 
 app.get('/v1/jobs/:id', protect, async (req, res) => {
+    const jobId = req.params.id;
+
+    // Fast-path: Memory Cache check first
+    if (jobCache.has(jobId)) {
+        return res.json({
+            data: {
+                id: jobId,
+                type: 'job',
+                attributes: jobCache.get(jobId)
+            }
+        });
+    }
+
     try {
         const authHeader = req.headers.authorization;
         const token = authHeader.split(' ')[1];
         const client = getAuthorizedClient(token);
 
-        const result = await resultsService.getResultByJobId(req.params.id, client);
-        if (!result) return res.status(404).json({ error: 'Job result not found' });
+        const result = await resultsService.getResultByJobId(jobId, client);
+        if (!result) return res.status(404).json({ error: 'Investigation record not found' });
 
         res.json({
             data: {
@@ -151,13 +161,12 @@ app.get('/v1/jobs/:id', protect, async (req, res) => {
                 attributes: {
                     status: result.status,
                     trust_score: result.overall_trust_score,
-                    layers: result.layers || result.forensic_results,
-                    completed_at: result.updated_at
+                    layers: result.layers || result.forensic_results
                 }
             }
         });
     } catch (err) {
-        res.status(500).json({ error: 'Internal server error' });
+        res.status(500).json({ error: 'Internal bridge failure' });
     }
 });
 
