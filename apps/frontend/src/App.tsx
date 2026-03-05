@@ -308,8 +308,8 @@ const App: React.FC = () => {
             } else if (attr.status === 'failed') {
               throw new Error('Forensic engine reported a processing failure.');
             } else {
-              // Still processing, poll again in 2s
-              setTimeout(() => pollForResult(id, attempts + 1), 2000);
+              // Still processing, poll again in 1s
+              setTimeout(() => pollForResult(id, attempts + 1), 1000);
             }
           } catch (err: any) {
             console.error('Polling error:', err);

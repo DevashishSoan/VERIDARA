@@ -17,7 +17,8 @@ class AudioSpecialist:
 
         try:
             # 1. Load Audio Bytes & Compute STFT
-            y, sr = librosa.load(audio_path, duration=30)
+            # sr=None skips resampling (2x speedup), duration=10 is enough for forensics
+            y, sr = librosa.load(audio_path, duration=10, sr=None)
             S = np.abs(librosa.stft(y))
             
             # 2. Compute Spectral Flux (normalized energy transitions)
