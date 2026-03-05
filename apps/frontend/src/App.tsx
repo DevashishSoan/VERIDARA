@@ -275,23 +275,56 @@ const App: React.FC = () => {
           const errBody = await response.json().catch(() => null);
           throw new Error(errBody?.error || `Analysis failed (HTTP ${response.status})`);
         }
-        const jobResult = await response.json();
-        const attr = jobResult.data.attributes;
-        setResult({
-          score: attr.trust_score,
-          verdict: attr.verdict,
-          id: jobResult.data.id,
-          layers: Object.entries(attr.layers || {}).map(([label, value]) => ({
-            label: label.charAt(0).toUpperCase() + label.slice(1),
-            value,
-          })),
-        });
+
+        const initialResult = await response.json();
+        const jobId = initialResult.data.id;
+
+        // --- Polling Logic ---
+        const pollForResult = async (id: string, attempts = 0) => {
+          if (attempts > 30) { // Timeout after 60 seconds (30 * 2s)
+            setIsAnalyzing(false);
+            setAnalysisError('Forensic analysis timed out. Please check your history in a few moments.');
+            return;
+          }
+
+          try {
+            const pollRes = await fetch(`${apiUrl}/v1/jobs/${id}`, {
+              headers: { 'Authorization': `Bearer ${session.access_token}` },
+            });
+            const jobData = await pollRes.json();
+            const attr = jobData.data.attributes;
+
+            if (attr.status === 'complete') {
+              setResult({
+                score: attr.trust_score,
+                verdict: attr.verdict || (attr.trust_score > 70 ? 'Authentic' : 'Suspicious'),
+                id: id,
+                layers: Object.entries(attr.layers || {}).map(([label, value]) => ({
+                  label: label.charAt(0).toUpperCase() + label.slice(1),
+                  value: value as number,
+                })),
+              });
+              setIsAnalyzing(false);
+            } else if (attr.status === 'failed') {
+              throw new Error('Forensic engine reported a processing failure.');
+            } else {
+              // Still processing, poll again in 2s
+              setTimeout(() => pollForResult(id, attempts + 1), 2000);
+            }
+          } catch (err: any) {
+            console.error('Polling error:', err);
+            setIsAnalyzing(false);
+            setAnalysisError(err.message || 'Error tracking forensic job status.');
+          }
+        };
+
+        // Start polling
+        pollForResult(jobId);
+
       } catch (err: any) {
         console.error(err);
         setIsAnalyzing(false);
         setAnalysisError(err.message || 'Connection to forensic engine failed. Ensure the API gateway is running.');
-      } finally {
-        setIsAnalyzing(false);
       }
     };
     uploadFile();
