@@ -76,26 +76,38 @@ async def analyze_media(request: AnalysisRequest):
             results[layer] = 50
 
     # 3. Semantic Analysis (Basic Aspect Ratio & Resolution Heuristics)
-    # AI models often default to perfect squares or specific resolutions
+    # AI models often default to perfect squares or specific generator-native resolutions
     try:
         if request.media_type == "image":
             import cv2
             img_info = cv2.imread(abs_path)
             if img_info is not None:
                 h, w = img_info.shape[:2]
-                # Perfect squares or common AI resolutions (1024x1024, 512x512)
-                if h == w and h in [512, 1024, 2048]:
-                    results["semantic"] = 30 # Suspiciously 'standard' AI format
-                else:
-                    results["semantic"] = 90
+                
+                # Semantic Scoring: Authenticity starts at 90, reduced by anomalies
+                semantic_score = 90
+                
+                # Check 1: Generator-native resolutions (1024x1024, 512x512, 1024x1536)
+                ai_resolutions = [
+                    (512, 512), (1024, 1024), (2048, 2048),
+                    (1024, 1536), (1536, 1024), (768, 1024), (1024, 768)
+                ]
+                if (w, h) in ai_resolutions:
+                    semantic_score -= 40
+                
+                # Check 2: Perfect Aspect Ratio Precision
+                # Real camera photos often have float residuals in aspect ratio due to sensor cropping.
+                # AI is often exactly 1.0, 1.5, or 0.666...
+                ratio = w / h
+                if ratio == 1.0 or ratio == 1.5 or ratio == 0.75:
+                    semantic_score -= 10
+                
+                results["semantic"] = max(0, semantic_score)
     except:
         results["semantic"] = 50
 
-    # 4. Fill missing stubs for aggregator compatibility
-    for layer in ["visual", "metadata", "audio", "temporal", "semantic"]:
-        if layer not in results:
-            results[layer] = 50
-
+    # 4. Return only layers that actually ran so the gateway
+    #    can reason over true signals instead of flat 50s.
     return {
         "job_id": request.job_id,
         "layers": results,

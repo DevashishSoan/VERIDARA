@@ -32,15 +32,38 @@ class MetaAggregator {
         let totalScore = 0;
         let totalWeight = 0;
 
-        for (const [layer, score] of Object.entries(layerScores)) {
-            if (layerWeights[layer] !== undefined) {
-                totalScore += score * layerWeights[layer];
-                totalWeight += layerWeights[layer];
+        // 1. Compute a weighted score using only layers that actually reported signals.
+        //    We explicitly skip layers that are exactly 50 AND were never emitted
+        //    by specialists to avoid "flattening" everything to 50.
+        for (const [layer, rawScore] of Object.entries(layerScores)) {
+            const weight = layerWeights[layer];
+            if (weight === undefined) continue;
+
+            const score = typeof rawScore === 'number' ? rawScore : 50;
+
+            // Treat perfect "unknown / default" scores as missing for aggregation.
+            if (score === 50 && (layer === 'temporal' || layer === 'audio' || layer === 'semantic')) {
+                continue;
             }
+
+            totalScore += score * weight;
+            totalWeight += weight;
         }
 
-        // Normalize if weights don't sum to 1
-        const finalScore = totalWeight > 0 ? Math.round(totalScore / totalWeight) : 50;
+        let finalScore = totalWeight > 0 ? Math.round(totalScore / totalWeight) : 50;
+
+        // 2. Hard fail-safe: if any critical layer is extremely low, clamp the score down.
+        const visual = typeof layerScores.visual === 'number' ? layerScores.visual : null;
+        const metadata = typeof layerScores.metadata === 'number' ? layerScores.metadata : null;
+
+        const criticalSignals = [visual, metadata].filter(v => v !== null);
+        const minCritical = criticalSignals.length ? Math.min(...criticalSignals) : null;
+
+        if (minCritical !== null && minCritical < 40) {
+            // Aggressive Clamping: If visual or metadata is < 40, the final score
+            // is strictly bounded to prevent "lucky" masks from other layers.
+            finalScore = Math.min(finalScore, minCritical + 10);
+        }
 
         return {
             trust_score: finalScore,
@@ -51,9 +74,9 @@ class MetaAggregator {
 
     getVerdict(score) {
         if (score >= 90) return 'authentic';
-        if (score >= 75) return 'probably_authentic';
-        if (score >= 55) return 'inconclusive'; // Tightened inconclusive range
-        if (score >= 35) return 'likely_synthetic';
+        if (score >= 82) return 'probably_authentic'; // Increased from 75
+        if (score >= 60) return 'inconclusive'; // Tightened inconclusive range
+        if (score >= 40) return 'likely_synthetic';
         return 'synthetic';
     }
 

@@ -24,33 +24,42 @@ class MetadataForensics:
             return 0, ["File not found"]
 
         try:
+            # 1. Check for File Integrity (Magic Numbers)
+            with open(file_path, 'rb') as f:
+                header = f.read(4)
+                # Simple check: PNG should start with \x89PNG
+                if file_path.lower().endswith('.png') and not header.startswith(b'\x89PNG'):
+                    score -= 50
+                    findings.append("Integrity Alert: File extension does not match binary headers.")
+
+            # 2. Check for missing EXIF (common in deepfakes/scraping)
             with open(file_path, 'rb') as f:
                 tags = exifread.process_file(f)
 
-            # 1. Check for missing EXIF (common in deepfakes/scraping)
             if not tags:
-                score -= 30
-                findings.append("Missing EXIF metadata (often stripped by manipulation tools)")
+                score -= 50
+                findings.append("Stricter Penalty: Missing EXIF metadata. Highly unusual for authentic high-res media.")
             
-            # 2. Check for suspicious software tags
+            # 3. Check for suspicious software tags
             software = str(tags.get('Image Software', ''))
             if software:
                 findings.append(f"Software detected: {software}")
-                if any(x in software for x in ['Photoshop', 'GIMP', 'Inpaint']):
-                    score -= 40
-                    findings.append("Manipulation software detected in metadata")
+                if any(x in software for x in ['Photoshop', 'GIMP', 'Inpaint', 'Krita']):
+                    score -= 45
+                    findings.append("Manipulation software detected in metadata.")
             
-            # 3. Check for obvious AI markers in any tag
+            # 4. Check for obvious AI markers in any tag
+            expanded_markers = self.ai_markers + ['FLUX.1', 'Grok-2', 'Aura', 'Black Forest Labs', 'Recraft']
             for tag, value in tags.items():
                 val_str = str(value)
-                if any(marker.lower() in val_str.lower() for marker in self.ai_markers):
-                    score -= 80
+                if any(marker.lower() in val_str.lower() for marker in expanded_markers):
+                    score -= 90
                     findings.append(f"AI Generator marker found in tag {tag}: {val_str}")
             
-            # 4. Check for camera model (lack of it is suspicious for "real" photos)
+            # 5. Check for camera model (lack of it is suspicious for "real" photos)
             if 'Image Make' not in tags and 'Image Model' not in tags:
-                score -= 10
-                findings.append("No camera make/model information")
+                score -= 20
+                findings.append("Incomplete Metadata: No camera make/model information.")
 
         except Exception as e:
             findings.append(f"Analysis error: {str(e)}")

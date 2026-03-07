@@ -17,10 +17,28 @@ const ForensicDashboard: React.FC<DashboardProps> = ({ result, onClose }) => {
 
     const handleDownload = async () => {
         try {
-            const VITE_API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
-            const response = await fetch(`${VITE_API_URL}/v1/jobs/${result.id}/report`, {
-                method: 'GET',
-            });
+            let apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+            let response: Response;
+
+            try {
+                response = await fetch(`${apiUrl}/v1/jobs/${result.id}/report`, {
+                    method: 'GET',
+                });
+            } catch (primaryError) {
+                console.error('Primary report download failed:', primaryError);
+
+                if (apiUrl.includes('trycloudflare.com')) {
+                    const fallbackUrl = 'http://localhost:3001';
+                    console.warn('Falling back to local gateway for report download at:', fallbackUrl);
+
+                    apiUrl = fallbackUrl;
+                    response = await fetch(`${apiUrl}/v1/jobs/${result.id}/report`, {
+                        method: 'GET',
+                    });
+                } else {
+                    throw primaryError;
+                }
+            }
 
             if (!response.ok) throw new Error('Report generation failed');
 
