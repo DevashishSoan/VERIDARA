@@ -35,11 +35,23 @@ const getAuthorizedClient = (token) => {
 
 const upload = multer({ storage: multer.memoryStorage() });
 
-app.use(helmet());
+app.use(helmet({
+    crossOriginResourcePolicy: { policy: "cross-origin" },
+    contentSecurityPolicy: false // Disable CSP for simpler debugging during development
+}));
+
 app.use(cors({
-    origin: ['https://devashishsoan.github.io', 'http://localhost:5173'],
+    origin: (origin, callback) => {
+        // Allow localhost and any github.io subdomains
+        if (!origin || origin.endsWith('.github.io') || origin.includes('localhost')) {
+            callback(null, true);
+        } else {
+            callback(new Error('Not allowed by CORS'));
+        }
+    },
     methods: ['GET', 'POST', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization']
+    allowedHeaders: ['Content-Type', 'Authorization'],
+    credentials: true
 }));
 app.use(morgan('dev'));
 app.use(express.json());
