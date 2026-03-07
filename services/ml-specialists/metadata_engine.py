@@ -37,8 +37,10 @@ class MetadataForensics:
                 tags = exifread.process_file(f)
 
             if not tags:
-                score -= 50
-                findings.append("Stricter Penalty: Missing EXIF metadata. Highly unusual for authentic high-res media.")
+                # Many real-world images (screenshots, scans, messaging exports)
+                # legitimately lack EXIF. Apply a softer penalty.
+                score -= 15
+                findings.append("Missing EXIF metadata. This is suspicious for high-end camera originals but common for scans/screenshots.")
             
             # 3. Check for suspicious software tags
             software = str(tags.get('Image Software', ''))
@@ -56,10 +58,10 @@ class MetadataForensics:
                     score -= 90
                     findings.append(f"AI Generator marker found in tag {tag}: {val_str}")
             
-            # 5. Check for camera model (lack of it is suspicious for "real" photos)
+            # 5. Check for camera model (lack of it is mildly suspicious for \"real\" photos)
             if 'Image Make' not in tags and 'Image Model' not in tags:
-                score -= 20
-                findings.append("Incomplete Metadata: No camera make/model information.")
+                score -= 5
+                findings.append("No explicit camera make/model information found.")
 
         except Exception as e:
             findings.append(f"Analysis error: {str(e)}")

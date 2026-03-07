@@ -8,9 +8,9 @@ class MetaAggregator {
         // Weights based on media type (Simplified)
         this.weights = {
             image: {
-                visual: 0.60,    // Primary forensic signal
-                metadata: 0.20,  // Secondary (easy to strip)
-                semantic: 0.20,  // Contextual/Format check
+                visual: 0.70,    // Heavier trust in visual forensics
+                metadata: 0.10,  // Metadata is noisy in the wild
+                semantic: 0.20,  // Contextual/format check
                 temporal: 0.00,
                 audio: 0.00
             },
@@ -59,24 +59,46 @@ class MetaAggregator {
         const criticalSignals = [visual, metadata].filter(v => v !== null);
         const minCritical = criticalSignals.length ? Math.min(...criticalSignals) : null;
 
-        if (minCritical !== null && minCritical < 40) {
-            // Aggressive Clamping: If visual or metadata is < 40, the final score
-            // is strictly bounded to prevent "lucky" masks from other layers.
-            finalScore = Math.min(finalScore, minCritical + 10);
+        if (minCritical !== null && minCritical < 30) {
+            // Clamp only in truly critical cases, and even then
+            // avoid forcing everything to the bottom.
+            finalScore = Math.min(finalScore, Math.round((minCritical + finalScore) / 2));
         }
 
         return {
             trust_score: finalScore,
-            verdict: this.getVerdict(finalScore),
+            verdict: this.getVerdict(finalScore, layerScores),
             explanation: this.generateExplanation(finalScore, layerScores)
         };
     }
 
-    getVerdict(score) {
+    getVerdict(score, layers = {}) {
+        const visual = typeof layers.visual === 'number' ? layers.visual : null;
+        const metadata = typeof layers.metadata === 'number' ? layers.metadata : null;
+        const semantic = typeof layers.semantic === 'number' ? layers.semantic : null;
+
+        const strongVisualSuspicion = visual !== null && visual < 40;
+        const strongMetaSuspicion = metadata !== null && metadata < 40;
+        const strongSemanticSuspicion = semantic !== null && semantic < 40;
+
+        // Only classify as synthetic when we have at least two corroborating weak layers.
+        if (strongVisualSuspicion && (strongMetaSuspicion || strongSemanticSuspicion)) {
+            return score < 40 ? 'synthetic' : 'likely_synthetic';
+        }
+
+        // If visual integrity is high and no other layer screams manipulation,
+        // err on the side of "inconclusive" instead of "synthetic".
+        if (visual !== null && visual >= 70 && !strongMetaSuspicion && !strongSemanticSuspicion) {
+            if (score >= 90) return 'authentic';
+            if (score >= 80) return 'probably_authentic';
+            return 'inconclusive';
+        }
+
+        // Fallback purely numeric mapping (more conservative).
         if (score >= 90) return 'authentic';
-        if (score >= 82) return 'probably_authentic'; // Increased from 75
-        if (score >= 60) return 'inconclusive'; // Tightened inconclusive range
-        if (score >= 40) return 'likely_synthetic';
+        if (score >= 80) return 'probably_authentic';
+        if (score >= 60) return 'inconclusive';
+        if (score >= 45) return 'likely_synthetic';
         return 'synthetic';
     }
 
