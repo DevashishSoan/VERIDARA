@@ -33,10 +33,22 @@ def health():
 @app.post("/analyze")
 async def analyze_media(request: AnalysisRequest):
     results = {}
+    # 1. Resolve Path Robustly
+    # Use absolute path relative to the monorepo root for consistency
+    filename = os.path.basename(request.file_path)
+    base_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    abs_path = os.path.normpath(os.path.join(base_dir, "storage", "uploads", filename))
     
-    # 1. Resolve Path
-    abs_path = os.path.join(os.path.dirname(__file__), "../../storage/uploads", os.path.basename(request.file_path))
+    print(f"[ORCH] Analyzing {request.media_type}: {abs_path}")
     
+    if not os.path.exists(abs_path):
+        print(f"[ORCH] ERROR: File not found at {abs_path}")
+        return {
+            "job_id": request.job_id,
+            "status": "failed",
+            "error": f"File not found: {filename}"
+        }
+
     # 2. Strategy based on media type - Execute in parallel
     future_to_layer = {}
     
@@ -57,9 +69,10 @@ async def analyze_media(request: AnalysisRequest):
         layer = future_to_layer[future]
         try:
             score, findings = future.result()
+            print(f"[ORCH] {layer.upper()} Result: {score} - {findings[0] if findings else 'OK'}")
             results[layer] = score
         except Exception as exc:
-            print(f"Layer {layer} generated an exception: {exc}")
+            print(f"[ORCH] CRITICAL: Layer {layer} crashed: {str(exc)}")
             results[layer] = 50
 
     # 3. Fill missing stubs for aggregator compatibility

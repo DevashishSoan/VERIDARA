@@ -49,6 +49,19 @@ app.get('/health', (req, res) => {
 });
 
 const jobCache = new Map();
+const CACHE_TTL = 10 * 60 * 1000; // 10 minutes
+
+/**
+ * Evict old jobs from memory cache to prevent leakage
+ */
+setInterval(() => {
+    const now = Date.now();
+    for (const [id, data] of jobCache.entries()) {
+        if (data.timestamp && (now - data.timestamp > CACHE_TTL)) {
+            jobCache.delete(id);
+        }
+    }
+}, 60 * 1000);
 
 /**
  * CORE ANALYSIS ROUTES
@@ -86,7 +99,8 @@ app.post('/v1/analyze', protect, upload.single('file'), async (req, res) => {
         // Initialize Memory Cache for 0ms polling overhead
         jobCache.set(jobData.job_id, {
             status: 'processing',
-            message: 'Forensic engine engaged.'
+            message: 'Forensic engine engaged.',
+            timestamp: Date.now()
         });
 
         // 3. Return 202 Instant
@@ -102,36 +116,52 @@ app.post('/v1/analyze', protect, upload.single('file'), async (req, res) => {
         (async () => {
             try {
                 const ML_ORCHESTRATOR_URL = process.env.ML_ORCHESTRATOR_URL || 'http://localhost:8002';
+                console.log(`[GATEWAY] Dispatching to Orchestrator: ${jobData.job_id}`);
+
                 const mlResponse = await axios.post(`${ML_ORCHESTRATOR_URL}/analyze`, {
                     job_id: jobData.job_id,
                     file_path: filePath,
                     media_type: media_type
                 });
 
+                if (mlResponse.data.status === 'failed') {
+                    throw new Error(mlResponse.data.error || 'Orchestrator internal failure');
+                }
+
                 const layerScores = mlResponse.data.layers;
                 const resultStats = aggregator.calculateTrustScore(media_type, layerScores);
+
+                console.log(`[GATEWAY] Processing complete for ${jobData.job_id}. Trust Score: ${resultStats.trust_score}`);
 
                 // Update Cache immediately
                 jobCache.set(jobData.job_id, {
                     status: 'complete',
                     trust_score: resultStats.trust_score,
                     verdict: resultStats.verdict,
-                    layers: layerScores
+                    layers: layerScores,
+                    timestamp: Date.now()
                 });
 
                 // Silent Persistence
                 await resultsService.saveResult(jobData.job_id, {
                     ...resultStats,
                     layers: layerScores
-                }, client).catch(e => console.error('Silent Persistence Delay:', e.message));
+                }, client).catch(e => console.error(`[DATABASE] Persistence Fail for ${jobData.job_id}:`, e.message));
 
             } catch (bgError) {
-                console.error(`[GATEWAY] Background worker error:`, bgError.message);
-                jobCache.set(jobData.job_id, { status: 'failed' });
+                const failureMsg = bgError.response?.data?.error || bgError.message;
+                console.error(`[GATEWAY] Background worker CRITICAL error [${jobData.job_id}]:`, failureMsg);
+
+                jobCache.set(jobData.job_id, {
+                    status: 'failed',
+                    timestamp: Date.now(),
+                    error: `Scanning Failure: ${failureMsg}`
+                });
             }
         })();
 
     } catch (err) {
+        console.error('Gateway Error:', err.message);
         res.status(500).json({ error: 'System busy. Retry in a few seconds.' });
     }
 });

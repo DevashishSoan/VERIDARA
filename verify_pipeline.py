@@ -36,7 +36,7 @@ def test_pipeline():
             "media_type": "image"
         }
         # We need to ensure the file exists in storage for MetadataEngine
-        storage_path = "../../storage/uploads/test_job_123.jpg"
+        storage_path = os.path.join(os.getcwd(), "storage", "uploads", "test_job_123.jpg")
         os.makedirs(os.path.dirname(storage_path), exist_ok=True)
         with open(storage_path, "wb") as f:
              f.write(b"fake data")
