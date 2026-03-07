@@ -18,13 +18,23 @@ class VisualSpecialist:
         try:
             # 1. Robust Loading
             img_bytes = np.fromfile(image_path, dtype=np.uint8)
-            img = cv2.imdecode(img_bytes, cv2.IMREAD_GRAYSCALE)
+            img_bgr = cv2.imdecode(img_bytes, cv2.IMREAD_COLOR)
             
-            if img is None: return 50, ["Format error: Unable to decode image bitstream"]
+            if img_bgr is None: return 50, ["Format error: Unable to decode image bitstream"]
 
-            # Baseline Shift: We start at 70 (Earned Authenticity)
-            score = 70
+            # Baseline Shift: We start at 50 (Skeptical Baseline - Inconclusive)
+            # Authenticity must be PROVEN through sensor noise or verified document context.
+            score = 50
             findings = []
+
+            # Convert to gray for main analysis
+            img = cv2.cvtColor(img_bgr, cv2.COLOR_BGR2GRAY)
+            
+            # Vibrancy Check: Real documents are rarely saturated. Vibrant AI photos shouldn't get scan boosts.
+            hsv = cv2.cvtColor(img_bgr, cv2.COLOR_BGR2HSV)
+            avg_saturation = np.mean(hsv[:,:,1])
+            is_vibrant = avg_saturation > 40 # Threshold for "not a boring scan"
+
 
             # Speed up: Resize if huge
             h, w = img.shape[:2]
@@ -69,48 +79,48 @@ class VisualSpecialist:
             flat_ratio = flat_blocks / total_blocks if total_blocks > 0 else 0
             texture_inconsistency = np.std(local_stds) if local_stds else 0
             
-            # Calibration: If it's high contrast (edges) but low noise (scan), it's likely a real document
-            is_potential_scan = edge_density > 0.05 and std_dev < 3.0
+            # Calibration: If it's high contrast but low noise AND low vibrancy, it's likely a real document.
+            # If it's vibrant (vivid colors), we disable the scan boost to catch complex AI scenes.
+            is_potential_scan = edge_density > 0.05 and std_dev < 3.0 and not is_vibrant
 
-            # Scoring based on Texture Audit
-            if flat_ratio > 0.15: # Too many "perfect" patches
-                score -= 35
-                findings.append(f"Texture Audit: Found {flat_blocks} pixel-perfect tiles (ratio:{flat_ratio:.2f}). Strong signature of AI filling logic.")
+            # Scoring based on Texture Audit (Harsher for v2.3)
+            if flat_ratio > 0.12: # Even tighter threshold
+                score -= 45
+                findings.append(f"Texture Audit: Block-level perfection detected (ratio:{flat_ratio:.2f}).")
             
-            if texture_inconsistency > 2.5: # Noise is too erratic across the image
-                score -= 15
-                findings.append(f"Inconsistent Grain: Patchy noise distribution (var:{texture_inconsistency:.2f}). Common in composite/AI media.")
+            if texture_inconsistency > 2.0: # Harsher inconsistency penalty
+                score -= 20
+                findings.append(f"Inconsistent Grain: Patchy texture variance (var:{texture_inconsistency:.2f}).")
 
             if ela_val < 0.5:
                 if not is_potential_scan:
-                    score -= 30
+                    score -= 35
                     findings.append(f"Forensic Anomaly: Flat compression grid (val:{ela_val:.2f}).")
                 else:
                     score -= 10
-                    findings.append(f"Scan Characteristic: Low ELA response (val:{ela_val:.2f}).")
-            elif ela_val > 5.0:
-                score -= 15
-                findings.append(f"Forensic Warning: High compression noise (val:{ela_val:.2f}).")
-
-            # Stricter Noise Bounds with Scan Tolerance
+                    findings.append(f"Scan Profile: Low ELA response (val:{ela_val:.2f}).")
+            
+            # Stricter Noise Bounds with Skeptical Growth
             if std_dev < 1.0:
                 score -= 40
                 findings.append(f"AI Signature: Zero-noise surface (std:{std_dev:.2f}).")
             elif std_dev < 2.2:
                 if not is_potential_scan:
-                    score -= 10
+                    score -= 15
                     findings.append(f"Suspicious: Low sensor noise (std:{std_dev:.2f}).")
                 else:
-                    score += 10 # Scan tolerance boost
-                    findings.append(f"Scan Tolerance: Low noise (std:{std_dev:.2f}) matches document profile.")
-            elif std_dev > 4.0:
-                score += 20 # Natural sensor noise 'earns' trust
+                    score += 15 # Scan tolerance boost (now harder to earn)
+                    findings.append(f"Scan Verification: Low noise (std:{std_dev:.2f}) matches document scan profile.")
+            elif std_dev > 3.5:
+                score += 35 # Natural sensor noise 'earns' high trust
                 findings.append(f"Authentic Grain: Natural pixel variance detected (std:{std_dev:.2f}).")
 
-            # Final Calibration: High edge density (documents) earns a "Structure Boost"
+            # Final Calibration: High edge density earns a boost ONLY if low vibrancy verified
             if is_potential_scan:
-                score += 15
-                findings.append("Document Identity: Strong edge structures detected.")
+                score += 20
+                findings.append("Document Identity: Validated low-vibrancy high-structure content.")
+            elif is_vibrant and edge_density > 0.05:
+                findings.append("Vibrancy Audit: High-vibrancy detected. Scan tolerance disabled for saturated scene.")
 
             # 5. Spectral Frequency Audit (FFT)
             f_transform = np.fft.fft2(img)
