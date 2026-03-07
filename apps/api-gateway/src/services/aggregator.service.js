@@ -8,15 +8,15 @@ class MetaAggregator {
         // Weights based on media type (Simplified)
         this.weights = {
             image: {
-                visual: 0.50,
-                metadata: 0.30,
-                semantic: 0.20,
+                visual: 0.60,    // Primary forensic signal
+                metadata: 0.20,  // Secondary (easy to strip)
+                semantic: 0.20,  // Contextual/Format check
                 temporal: 0.00,
                 audio: 0.00
             },
             video: {
-                visual: 0.30,
-                temporal: 0.40,
+                visual: 0.35,
+                temporal: 0.35,
                 audio: 0.20,
                 metadata: 0.10,
                 semantic: 0.00
@@ -51,9 +51,9 @@ class MetaAggregator {
 
     getVerdict(score) {
         if (score >= 90) return 'authentic';
-        if (score >= 70) return 'probably_authentic';
-        if (score >= 40) return 'inconclusive';
-        if (score >= 20) return 'likely_synthetic';
+        if (score >= 75) return 'probably_authentic';
+        if (score >= 55) return 'inconclusive'; // Tightened inconclusive range
+        if (score >= 35) return 'likely_synthetic';
         return 'synthetic';
     }
 

@@ -16,14 +16,16 @@ class VisualSpecialist:
             return 50, ["Visual analysis skipped: File not accessible"]
 
         try:
-            # 1. Load image in grayscale for noise analysis
-            img = cv2.imread(image_path, cv2.IMREAD_GRAYSCALE)
-            if img is None: return 50, ["Format error: OpenCV could not read image"]
+            # 1. Robust Loading (Handles Windows path encoding and memory-mapped files better)
+            img_bytes = np.fromfile(image_path, dtype=np.uint8)
+            img = cv2.imdecode(img_bytes, cv2.IMREAD_GRAYSCALE)
+            
+            if img is None: return 50, ["Format error: OpenCV could not decode image buffer"]
 
             # Speed up: Resize if huge (keep enough resolution for noise analysis)
             h, w = img.shape[:2]
-            if max(h, w) > 800:
-                scale = 800 / max(h, w)
+            if max(h, w) > 1024:
+                scale = 1024 / max(h, w)
                 img = cv2.resize(img, (int(w * scale), int(h * scale)), interpolation=cv2.INTER_AREA)
 
             # 2. Extract Noise Residuals (Original - Median Filtered)
@@ -40,24 +42,28 @@ class VisualSpecialist:
             score = 100
             findings = []
 
-            if std_dev < 1.2:
-                score -= 60
-                findings.append(f"CRITICAL: Extreme pixel uniformity (std:{std_dev:.2f}). Characteristic of high-end GAN/Diffusion models.")
-            elif std_dev < 2.5:
-                score -= 30
-                findings.append(f"WARNING: Low sensor noise (std:{std_dev:.2f}). Potential post-processing or AI upscaling detected.")
-            else:
-                findings.append(f"Authentic grain detected (noise std:{std_dev:.2f} is consistent with sensor physics).")
+            # Dynamic Thresholding: High res images should have more noise detail
+            if std_dev < 1.0:
+                score -= 70
+                findings.append(f"CRITICAL: Synthetic pixel perfection (std:{std_dev:.2f}). Characteristic of GAN-generated textures.")
+            elif std_dev < 2.0:
+                score -= 40
+                findings.append(f"WARNING: Abnormal pixel uniformity (std:{std_dev:.2f}). Potential AI upscaling or denoising.")
+            elif std_dev > 15.0:
+                 score -= 20
+                 findings.append(f"CAUTION: Excessive per-pixel variance (std:{std_dev:.2f}). Possible adversarial noise injection.")
 
-            # 4. Check for Frequency Anomalies (Simple FFT)
+            # 4. Check for Frequency Anomalies (FFT)
             # High-frequency artifacts are common in AI checkerboard patterns.
             f_transform = np.fft.fft2(img)
             f_shift = np.fft.fftshift(f_transform)
             magnitude_spectrum = 20 * np.log(np.abs(f_shift) + 1)
             
-            if np.max(magnitude_spectrum) > 220:
-                score -= 15
-                findings.append("Periodic artifacts found in frequency spectrum (Checkerboard pattern common in AI tiling).")
+            # AI models often leave traces in specific frequency bins
+            spectral_peak = np.max(magnitude_spectrum)
+            if spectral_peak > 230:
+                score -= 25
+                findings.append(f"Spectral anomaly detected (peak:{spectral_peak:.1f}). Found periodic tiling artifacts common in Diffusion models.")
 
             return max(0, min(100, score)), findings
 

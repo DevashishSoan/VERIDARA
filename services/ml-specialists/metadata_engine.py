@@ -5,10 +5,11 @@ import json
 class MetadataForensics:
     def __init__(self):
         self.suspicious_tags = [
-            'Software', 'Artist', 'Copyright', 'ImageDescription'
+            'Software', 'Artist', 'Copyright', 'ImageDescription', 'UserComment', 'XPComment', 'Creator'
         ]
         self.ai_markers = [
-            'DALL-E', 'Midjourney', 'Stable Diffusion', 'Adobe Firefly', 'GAN', 'Generative'
+            'DALL-E', 'Midjourney', 'Stable Diffusion', 'Adobe Firefly', 'GAN', 'Generative',
+            'AI Generated', 'Synth', 'Neural', 'Deepfake', 'Magic Eraser', 'Inpaint'
         ]
 
     def analyze(self, file_path):

@@ -75,7 +75,23 @@ async def analyze_media(request: AnalysisRequest):
             print(f"[ORCH] CRITICAL: Layer {layer} crashed: {str(exc)}")
             results[layer] = 50
 
-    # 3. Fill missing stubs for aggregator compatibility
+    # 3. Semantic Analysis (Basic Aspect Ratio & Resolution Heuristics)
+    # AI models often default to perfect squares or specific resolutions
+    try:
+        if request.media_type == "image":
+            import cv2
+            img_info = cv2.imread(abs_path)
+            if img_info is not None:
+                h, w = img_info.shape[:2]
+                # Perfect squares or common AI resolutions (1024x1024, 512x512)
+                if h == w and h in [512, 1024, 2048]:
+                    results["semantic"] = 30 # Suspiciously 'standard' AI format
+                else:
+                    results["semantic"] = 90
+    except:
+        results["semantic"] = 50
+
+    # 4. Fill missing stubs for aggregator compatibility
     for layer in ["visual", "metadata", "audio", "temporal", "semantic"]:
         if layer not in results:
             results[layer] = 50
