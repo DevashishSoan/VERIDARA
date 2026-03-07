@@ -55,6 +55,7 @@ class MetaAggregator {
         // 2. Hard fail-safe: if any critical layer is extremely low, clamp the score down.
         const visual = typeof layerScores.visual === 'number' ? layerScores.visual : null;
         const metadata = typeof layerScores.metadata === 'number' ? layerScores.metadata : null;
+        const semantic = typeof layerScores.semantic === 'number' ? layerScores.semantic : null;
 
         const criticalSignals = [visual, metadata].filter(v => v !== null);
         const minCritical = criticalSignals.length ? Math.min(...criticalSignals) : null;
@@ -63,6 +64,13 @@ class MetaAggregator {
             // Clamp only in truly critical cases, and even then
             // avoid forcing everything to the bottom.
             finalScore = Math.min(finalScore, Math.round((minCritical + finalScore) / 2));
+        }
+
+        // 3. If semantic layer is strongly suspicious (< 40),
+        //    cap the overall trust score so clearly AI-like
+        //    sizes/ratios cannot receive very high trust.
+        if (semantic !== null && semantic < 40) {
+            finalScore = Math.min(finalScore, Math.round((semantic + finalScore) / 2), 45);
         }
 
         return {
@@ -78,12 +86,17 @@ class MetaAggregator {
         const semantic = typeof layers.semantic === 'number' ? layers.semantic : null;
 
         const strongVisualSuspicion = visual !== null && visual < 40;
-        const strongMetaSuspicion = metadata !== null && metadata < 40;
-        const strongSemanticSuspicion = semantic !== null && semantic < 40;
+        const strongMetaSuspicion = metadata !== null && metadata < 55;
+        const strongSemanticSuspicion = semantic !== null && semantic < 50;
 
-        // Only classify as synthetic when we have at least two corroborating weak layers.
-        if (strongVisualSuspicion && (strongMetaSuspicion || strongSemanticSuspicion)) {
-            return score < 40 ? 'synthetic' : 'likely_synthetic';
+        // High-confidence synthetic: semantic + at least one other weak signal
+        if (strongSemanticSuspicion && (strongVisualSuspicion || strongMetaSuspicion)) {
+            return score < 60 ? 'synthetic' : 'likely_synthetic';
+        }
+
+        // Visual + metadata both weak (regardless of semantic)
+        if (strongVisualSuspicion && strongMetaSuspicion) {
+            return score < 55 ? 'synthetic' : 'likely_synthetic';
         }
 
         // If visual integrity is high and no other layer screams manipulation,

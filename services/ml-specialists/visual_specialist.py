@@ -48,31 +48,61 @@ class VisualSpecialist:
             noise_residual = cv2.absdiff(img, denoised)
             std_dev = np.std(noise_residual)
             
+            # 5. Deep Texture Audit (Block-based Analysis)
+            # AI often has "patchy" noise: perfect in some areas, noisy in others.
+            block_size = 32
+            blocks_h = h // block_size
+            blocks_w = w // block_size
+            
+            local_stds = []
+            flat_blocks = 0
+            
+            for i in range(blocks_h):
+                for j in range(blocks_w):
+                    block = noise_residual[i*block_size:(i+1)*block_size, j*block_size:(j+1)*block_size]
+                    block_std = np.std(block)
+                    local_stds.append(block_std)
+                    if block_std < 0.8: # Extremely flat texture tile
+                        flat_blocks += 1
+            
+            total_blocks = blocks_h * blocks_w
+            flat_ratio = flat_blocks / total_blocks if total_blocks > 0 else 0
+            texture_inconsistency = np.std(local_stds) if local_stds else 0
+            
             # Calibration: If it's high contrast (edges) but low noise (scan), it's likely a real document
             is_potential_scan = edge_density > 0.05 and std_dev < 3.0
+
+            # Scoring based on Texture Audit
+            if flat_ratio > 0.15: # Too many "perfect" patches
+                score -= 35
+                findings.append(f"Texture Audit: Found {flat_blocks} pixel-perfect tiles (ratio:{flat_ratio:.2f}). Strong signature of AI filling logic.")
+            
+            if texture_inconsistency > 2.5: # Noise is too erratic across the image
+                score -= 15
+                findings.append(f"Inconsistent Grain: Patchy noise distribution (var:{texture_inconsistency:.2f}). Common in composite/AI media.")
 
             if ela_val < 0.5:
                 if not is_potential_scan:
                     score -= 30
-                    findings.append(f"Forensic Anomaly: Flat compression grid (val:{ela_val:.2f}). Characteristic of synthetic textures.")
+                    findings.append(f"Forensic Anomaly: Flat compression grid (val:{ela_val:.2f}).")
                 else:
                     score -= 10
-                    findings.append(f"Scan Characteristic: Low ELA response (val:{ela_val:.2f}) observed in document-like structure.")
+                    findings.append(f"Scan Characteristic: Low ELA response (val:{ela_val:.2f}).")
             elif ela_val > 5.0:
                 score -= 15
-                findings.append(f"Forensic Warning: High compression noise (val:{ela_val:.2f}). Potential artifact concealment.")
+                findings.append(f"Forensic Warning: High compression noise (val:{ela_val:.2f}).")
 
             # Stricter Noise Bounds with Scan Tolerance
             if std_dev < 1.0:
                 score -= 40
-                findings.append(f"AI Signature: Zero-noise surface (std:{std_dev:.2f}). Pixel distribution matches GAN architecture.")
+                findings.append(f"AI Signature: Zero-noise surface (std:{std_dev:.2f}).")
             elif std_dev < 2.2:
                 if not is_potential_scan:
                     score -= 10
-                    findings.append(f"Suspicious: Low sensor noise (std:{std_dev:.2f}). Typical of AI or heavy post-processing.")
+                    findings.append(f"Suspicious: Low sensor noise (std:{std_dev:.2f}).")
                 else:
                     score += 10 # Scan tolerance boost
-                    findings.append(f"Scan Tolerance: Low noise (std:{std_dev:.2f}) matches document scan profile.")
+                    findings.append(f"Scan Tolerance: Low noise (std:{std_dev:.2f}) matches document profile.")
             elif std_dev > 4.0:
                 score += 20 # Natural sensor noise 'earns' trust
                 findings.append(f"Authentic Grain: Natural pixel variance detected (std:{std_dev:.2f}).")
@@ -80,7 +110,7 @@ class VisualSpecialist:
             # Final Calibration: High edge density (documents) earns a "Structure Boost"
             if is_potential_scan:
                 score += 15
-                findings.append("Document Identity: Strong edge structures detected. Trusting structural integrity over pixel noise.")
+                findings.append("Document Identity: Strong edge structures detected.")
 
             # 5. Spectral Frequency Audit (FFT)
             f_transform = np.fft.fft2(img)
@@ -90,7 +120,7 @@ class VisualSpecialist:
             spectral_peak = np.max(magnitude_spectrum)
             if spectral_peak > 235:
                 score -= 20
-                findings.append(f"Spectral Artifact: Periodic spikes (peak:{spectral_peak:.1f}) common in tiled models.")
+                findings.append(f"Spectral Artifact: Periodic spikes (peak:{spectral_peak:.1f}).")
 
             return max(0, min(100, score)), findings
 

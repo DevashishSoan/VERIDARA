@@ -93,14 +93,14 @@ async def analyze_media(request: AnalysisRequest):
                     (1024, 1536), (1536, 1024), (768, 1024), (1024, 768)
                 ]
                 if (w, h) in ai_resolutions:
-                    semantic_score -= 40
+                    semantic_score -= 55  # Stronger suspicion for generator-native sizes
                 
                 # Check 2: Perfect Aspect Ratio Precision
                 # Real camera photos often have float residuals in aspect ratio due to sensor cropping.
                 # AI is often exactly 1.0, 1.5, or 0.666...
                 ratio = w / h
                 if ratio == 1.0 or ratio == 1.5 or ratio == 0.75:
-                    semantic_score -= 10
+                    semantic_score -= 15
                 
                 results["semantic"] = max(0, semantic_score)
     except:
