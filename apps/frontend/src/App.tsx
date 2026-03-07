@@ -265,12 +265,12 @@ const App: React.FC = () => {
           setIsAuthModalOpen(true);
           return;
         }
-        const VITE_API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
-        console.log('Engaging forensic engine at:', VITE_API_URL);
+        let apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+        console.log('Engaging forensic engine at:', apiUrl);
 
         let response;
         try {
-          response = await fetch(`${VITE_API_URL}/v1/analyze`, {
+          response = await fetch(`${apiUrl}/v1/analyze`, {
             method: 'POST',
             headers: {
               'Authorization': `Bearer ${session.access_token}`,
@@ -278,8 +278,29 @@ const App: React.FC = () => {
             body: formData,
           });
         } catch (connectionError) {
-          console.error('Fetch failed:', connectionError);
-          throw new Error('CONNECTION_FAILURE: Could not reach the forensic gateway. The API tunnel may have expired. Please run .\\start_truthlens.ps1 to refresh.');
+          console.error('Primary fetch failed:', connectionError);
+
+          // If we were using a transient Cloudflare tunnel URL, fall back to a local gateway
+          if (apiUrl.includes('trycloudflare.com')) {
+            const fallbackUrl = 'http://localhost:3001';
+            console.warn('Falling back to local forensic gateway at:', fallbackUrl);
+
+            try {
+              apiUrl = fallbackUrl;
+              response = await fetch(`${apiUrl}/v1/analyze`, {
+                method: 'POST',
+                headers: {
+                  'Authorization': `Bearer ${session.access_token}`,
+                },
+                body: formData,
+              });
+            } catch (fallbackError) {
+              console.error('Fallback fetch to local gateway failed:', fallbackError);
+              throw new Error('CONNECTION_FAILURE: Could not reach the forensic gateway (tunnel and localhost both failed). Please ensure the backend stack is running with .\\start_truthlens.ps1');
+            }
+          } else {
+            throw new Error('CONNECTION_FAILURE: Could not reach the forensic gateway. Please ensure the backend stack is running and try again.');
+          }
         }
 
         if (response.status === 401) {
@@ -303,7 +324,7 @@ const App: React.FC = () => {
           }
 
           try {
-            const pollRes = await fetch(`${VITE_API_URL}/v1/jobs/${id}`, {
+            const pollRes = await fetch(`${apiUrl}/v1/jobs/${id}`, {
               headers: { 'Authorization': `Bearer ${session.access_token}` },
             });
             if (pollRes.status === 304) {
