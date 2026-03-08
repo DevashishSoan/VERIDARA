@@ -78,23 +78,24 @@ if ($url -ne "") {
     if ($reachable) {
         Write-Output "Tunnel is LIVE."
         
-        # Update Frontend .env
+        # Update Frontend .env with ALL discovery requirements
         $envPath = "apps\frontend\.env"
-        if (Test-Path $envPath) {
-            $content = Get-Content $envPath
-            $newContent = $content -replace "VITE_API_URL=.*", "VITE_API_URL=$url"
-            $newContent | Set-Content $envPath
-            Write-Output "Frontend .env synchronized."
+        $gwEnvPath = "apps\api-gateway\.env"
+        if (Test-Path $envPath -and Test-Path $gwEnvPath) {
+            $gwEnv = Get-Content $gwEnvPath
+            $sbUrl = ($gwEnv | Select-String "SUPABASE_URL=").Line.Split("=")[1].Trim()
+            $sbKey = ($gwEnv | Select-String "SUPABASE_ANON_KEY=").Line.Split("=")[1].Trim()
+            
+            # Reconstruct .env to ensure it's clean and has all keys
+            $newContent = "VITE_API_URL=$url`nVITE_SUPABASE_URL=$sbUrl`nVITE_SUPABASE_ANON_KEY=$sbKey`n"
+            Set-Content $envPath $newContent -NoNewline
+            Write-Output "Frontend .env synchronized with Supabase credentials."
         }
         
         # --- DYNAMIC DISCOVERY: Push to Supabase ---
         try {
-            # Extract Supabase info from api-gateway .env
-            $gwEnvPath = "apps\api-gateway\.env"
             if (Test-Path $gwEnvPath) {
-                $gwEnv = Get-Content $gwEnvPath
-                $sbUrl = ($gwEnv | Select-String "SUPABASE_URL=").Line.Split("=")[1].Trim()
-                $sbKey = ($gwEnv | Select-String "SUPABASE_ANON_KEY=").Line.Split("=")[1].Trim()
+                # We already extracted $sbUrl and $sbKey above
                 
                 if ($sbUrl -and $sbKey) {
                     Write-Output "Registering tunnel in Supabase for cross-device discovery..."
