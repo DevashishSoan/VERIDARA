@@ -50,3 +50,18 @@ CREATE POLICY "Users can view results"
 CREATE POLICY "Users can insert results" 
     ON public.analysis_results FOR INSERT 
     WITH CHECK (true);
+
+-- Create System Config Table for dynamic discovery
+CREATE TABLE IF NOT EXISTS public.system_config (
+    key TEXT PRIMARY KEY,
+    value TEXT,
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Allow anyone to read the config
+ALTER TABLE public.system_config ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Public read config" ON public.system_config FOR SELECT USING (true);
+CREATE POLICY "Allow anyone to upsert config" ON public.system_config FOR ALL USING (true) WITH CHECK (true);
+
+-- Insert initial empty tunnel key
+INSERT INTO public.system_config (key, value) VALUES ('active_tunnel_url', '') ON CONFLICT (key) DO NOTHING;

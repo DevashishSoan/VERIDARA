@@ -184,6 +184,7 @@ const FlowLine = () => (
 // ─── Main App ────────────────────────────────────────────────
 const App: React.FC = () => {
   const [user, setUser] = useState<any>(null);
+  const [activeApiUrl, setActiveApiUrl] = useState<string>(import.meta.env.VITE_API_URL || 'http://localhost:3001');
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [result, setResult] = useState<any>(null);
@@ -213,6 +214,34 @@ const App: React.FC = () => {
       subscription.unsubscribe();
     };
   }, []);
+
+  // ─── Dynamic Discovery Loop ───
+  useEffect(() => {
+    const discoverBackend = async () => {
+      try {
+        console.log('Searching for active forensic nodes...');
+        const { data, error } = await supabase
+          .from('system_config')
+          .select('value')
+          .eq('key', 'active_tunnel_url')
+          .single();
+
+        if (!error && data?.value && data.value !== activeApiUrl) {
+          console.log('Discovery: Forensic gateway found at', data.value);
+          setActiveApiUrl(data.value);
+        }
+      } catch (err) {
+        // Silent fail, keep current state
+      }
+    };
+
+    // Initial discovery
+    discoverBackend();
+
+    // Periodic refresh every 5 mins
+    const interval = setInterval(discoverBackend, 5 * 60 * 1000);
+    return () => clearInterval(interval);
+  }, [activeApiUrl]);
 
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -265,7 +294,7 @@ const App: React.FC = () => {
           setIsAuthModalOpen(true);
           return;
         }
-        let apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+        let apiUrl = activeApiUrl;
         console.log('Engaging forensic engine at:', apiUrl);
 
         let response;
