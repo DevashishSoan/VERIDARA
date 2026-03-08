@@ -1,0 +1,41 @@
+name: Forensic Benchmarking
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  benchmark:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+        
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install opencv-python-headless numpy librosa exifread pydantic fastapi uvicorn
+        
+    - name: Create Mock Benchmarks
+      run: |
+        mkdir -p storage/benchmarks/authentic
+        mkdir -p storage/benchmarks/synthetic
+        # Create a dummy "authentic" noise image
+        python -c "import numpy as np; import cv2; img = np.random.normal(128, 5, (100, 100)).astype(np.uint8); cv2.imwrite('storage/benchmarks/authentic/real_sample.jpg', img)"
+        # Create a dummy "synthetic" flat image
+        python -c "import numpy as np; import cv2; img = np.zeros((100, 100), dtype=np.uint8); cv2.imwrite('storage/benchmarks/synthetic/ai_sample.jpg', img)"
+
+    - name: Run Forensic Audit
+      run: |
+        python services/ml-specialists/scripts/audit_dataset.py --path storage/benchmarks
+        
+    - name: Check Benchmark Accuracy
+      run: |
+        # Ensure accuracy is above 80% (basic sanity check)
+        python -c "import json; r = json.load(open('services/ml-specialists/scripts/audit_report.json')); print(f'Accuracy: {r[\"summary\"][\"accuracy\"]}%'); exit(0 if r[\"summary\"][\"accuracy\"] >= 80 else 1)"

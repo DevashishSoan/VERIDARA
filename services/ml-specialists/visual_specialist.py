@@ -1,6 +1,10 @@
 import cv2
 import numpy as np
 import os
+from config import (
+    FLAT_RATIO_THRESHOLD, TEXTURE_VAR_THRESHOLD, ELA_VAL_THRESHOLD,
+    SCAN_EDGE_DENSITY_REQ, SCAN_STD_DEV_LIMIT, AUTHENTIC_STD_DEV_MIN
+)
 
 class VisualSpecialist:
     def __init__(self):
@@ -81,18 +85,18 @@ class VisualSpecialist:
             
             # Calibration: If it's high contrast but low noise AND low vibrancy, it's likely a real document.
             # If it's vibrant (vivid colors), we disable the scan boost to catch complex AI scenes.
-            is_potential_scan = edge_density > 0.05 and std_dev < 3.0 and not is_vibrant
+            is_potential_scan = edge_density > SCAN_EDGE_DENSITY_REQ and std_dev < SCAN_STD_DEV_LIMIT and not is_vibrant
 
             # Scoring based on Texture Audit (Harsher for v2.3)
-            if flat_ratio > 0.12: # Even tighter threshold
+            if flat_ratio > FLAT_RATIO_THRESHOLD:
                 score -= 45
                 findings.append(f"Texture Audit: Block-level perfection detected (ratio:{flat_ratio:.2f}).")
             
-            if texture_inconsistency > 2.0: # Harsher inconsistency penalty
+            if texture_inconsistency > TEXTURE_VAR_THRESHOLD:
                 score -= 20
                 findings.append(f"Inconsistent Grain: Patchy texture variance (var:{texture_inconsistency:.2f}).")
 
-            if ela_val < 0.5:
+            if ela_val < ELA_VAL_THRESHOLD:
                 if not is_potential_scan:
                     score -= 35
                     findings.append(f"Forensic Anomaly: Flat compression grid (val:{ela_val:.2f}).")
@@ -104,14 +108,14 @@ class VisualSpecialist:
             if std_dev < 1.0:
                 score -= 40
                 findings.append(f"AI Signature: Zero-noise surface (std:{std_dev:.2f}).")
-            elif std_dev < 2.2:
+            elif std_dev < SCAN_STD_DEV_LIMIT:
                 if not is_potential_scan:
                     score -= 15
                     findings.append(f"Suspicious: Low sensor noise (std:{std_dev:.2f}).")
                 else:
                     score += 15 # Scan tolerance boost (now harder to earn)
                     findings.append(f"Scan Verification: Low noise (std:{std_dev:.2f}) matches document scan profile.")
-            elif std_dev > 3.5:
+            elif std_dev > AUTHENTIC_STD_DEV_MIN:
                 score += 35 # Natural sensor noise 'earns' high trust
                 findings.append(f"Authentic Grain: Natural pixel variance detected (std:{std_dev:.2f}).")
 

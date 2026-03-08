@@ -1,7 +1,4 @@
-version: '3.8'
-
 services:
-  # ─── API Gateway (Node.js) ─────────────────────────────────────────
   api-gateway:
     build:
       context: ./apps/api-gateway
@@ -9,62 +6,52 @@ services:
     ports:
       - "3001:3001"
     environment:
-      - NODE_ENV=production
       - PORT=3001
+      - INGEST_SERVICE_URL=http://ingest-service:8001
+      - ML_ORCHESTRATOR_URL=http://ml-orchestrator:8002
       - SUPABASE_URL=${SUPABASE_URL}
       - SUPABASE_ANON_KEY=${SUPABASE_ANON_KEY}
-      - JWT_SECRET=${JWT_SECRET}
-      - INGRET_SERVICE_URL=http://ingest-service:8001
     depends_on:
-      - ingest-service
+      ingest-service:
+        condition: service_healthy
+      ml-orchestrator:
+        condition: service_healthy
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:3001/health" ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
     networks:
       - truthlens-net
 
-  # ─── Ingest Service (Python/FastAPI) ──────────────────────────────
   ingest-service:
-    build:
-      context: ./services/ingest-service
-      dockerfile: Dockerfile
+    build: ./services/ingest-service
     ports:
       - "8001:8001"
     volumes:
-      - shared-storage:/app/storage/uploads
-    environment:
-      - ML_ORCH_URL=http://ml-orchestrator:8002
-    depends_on:
-      - ml-orchestrator
+      - ./storage:/app/storage
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:8001/health" ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
     networks:
       - truthlens-net
 
-  # ─── ML Orchestrator (Python/FastAPI) ──────────────────────────────
   ml-orchestrator:
-    build:
-      context: ./services/ml-specialists
-      dockerfile: Dockerfile
+    build: ./services/ml-specialists
     ports:
       - "8002:8002"
     volumes:
-      - shared-storage:/app/storage/uploads
-    networks:
-      - truthlens-net
-
-  # ─── Frontend (Static Build) ───────────────────────────────────────
-  # In a real production setup, this would be served by Nginx or a CDN.
-  # For Dockerized dev/staging:
-  frontend:
-    build:
-      context: ./apps/frontend
-      dockerfile: Dockerfile
-    ports:
-      - "5173:5173"
-    environment:
-      - VITE_API_URL=http://localhost:3001
+      - ./storage:/app/storage
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:8002/health" ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
     networks:
       - truthlens-net
 
 networks:
   truthlens-net:
     driver: bridge
-
-volumes:
-  shared-storage:

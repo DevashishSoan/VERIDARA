@@ -1,0 +1,32 @@
+{
+    "summary": {
+        "total_files": 2,
+        "passed": 2,
+        "failed": 0,
+        "accuracy": 100.0
+    },
+    "details": [
+        {
+            "file": "real_sample.jpg",
+            "category": "authentic",
+            "score": 68.0,
+            "is_correct": true,
+            "findings": [
+                "Authentic Grain: Natural pixel variance detected (std:3.55).",
+                "Spectral Artifact: Periodic spikes (peak:346.5).",
+                "Missing EXIF metadata. This is suspicious for high-end camera originals but common for scans/screenshots."
+            ]
+        },
+        {
+            "file": "ai_sample.jpg",
+            "category": "synthetic",
+            "score": 16.0,
+            "is_correct": true,
+            "findings": [
+                "Texture Audit: Block-level perfection detected (ratio:1.00).",
+                "Forensic Anomaly: Flat compression grid (val:0.00).",
+                "AI Signature: Zero-noise surface (std:0.00)."
+            ]
+        }
+    ]
+}

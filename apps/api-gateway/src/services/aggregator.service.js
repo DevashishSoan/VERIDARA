@@ -5,122 +5,96 @@
  */
 class MetaAggregator {
     constructor() {
-        // Weights based on media type (Simplified)
+        // Balanced Weights: Reducing over-reliance on a single model
         this.weights = {
             image: {
-                visual: 0.70,    // Heavier trust in visual forensics
-                metadata: 0.10,  // Metadata is noisy in the wild
-                semantic: 0.20,  // Contextual/format check
+                visual: 0.50,    // Reduced from 0.70 to be more balanced
+                metadata: 0.20,  // Increased from 0.10
+                semantic: 0.30,  // Increased from 0.20
                 temporal: 0.00,
                 audio: 0.00
             },
             video: {
-                visual: 0.35,
-                temporal: 0.35,
-                audio: 0.20,
+                visual: 0.30,
+                temporal: 0.30,
+                audio: 0.30,
                 metadata: 0.10,
                 semantic: 0.00
+            },
+            audio: {
+                audio: 0.80,
+                metadata: 0.20
             }
         };
     }
 
     /**
-     * Calculates the final Trust Score
+     * Calculates the final Trust Score using a weighted ensemble
      */
     calculateTrustScore(mediaType, layerScores) {
         const layerWeights = this.weights[mediaType] || this.weights.image;
-        let totalScore = 0;
+        let totalWeightedScore = 0;
         let totalWeight = 0;
+        let activeScores = [];
 
-        // 1. Compute a weighted score using only layers that actually reported signals.
-        //    We explicitly skip layers that are exactly 50 AND were never emitted
-        //    by specialists to avoid "flattening" everything to 50.
+        // 1. Ensemble Calculation
         for (const [layer, rawScore] of Object.entries(layerScores)) {
             const weight = layerWeights[layer];
-            if (weight === undefined) continue;
+            if (weight === undefined || weight === 0) continue;
 
             const score = typeof rawScore === 'number' ? rawScore : 50;
 
-            // Treat perfect "unknown / default" scores as missing for aggregation.
-            if (score === 50 && (layer === 'temporal' || layer === 'audio' || layer === 'semantic')) {
-                continue;
-            }
+            // Collect active signals for mean average fallback/comparison
+            activeScores.push(score);
 
-            totalScore += score * weight;
+            totalWeightedScore += score * weight;
             totalWeight += weight;
         }
 
-        let finalScore = totalWeight > 0 ? Math.round(totalScore / totalWeight) : 50;
+        // 2. Compute Weighted and Mean Results
+        let weightedScore = totalWeight > 0 ? Math.round(totalWeightedScore / totalWeight) : 50;
+        let meanScore = activeScores.length > 0
+            ? Math.round(activeScores.reduce((a, b) => a + b, 0) / activeScores.length)
+            : 50;
 
-        // 2. Hard fail-safe: if any critical layer is extremely low, clamp the score down.
-        const visual = typeof layerScores.visual === 'number' ? layerScores.visual : null;
-        const metadata = typeof layerScores.metadata === 'number' ? layerScores.metadata : null;
-        const semantic = typeof layerScores.semantic === 'number' ? layerScores.semantic : null;
+        // Final Score: A blend of weighted importance and raw mean consistency
+        // This reduces the risk of one biased model dominating the result.
+        let finalScore = Math.round((weightedScore * 0.7) + (meanScore * 0.3));
 
-        const criticalSignals = [visual, metadata].filter(v => v !== null);
-        const minCritical = criticalSignals.length ? Math.min(...criticalSignals) : null;
-
-        if (minCritical !== null && minCritical < 30) {
-            // Clamp only in truly critical cases, and even then
-            // avoid forcing everything to the bottom.
-            finalScore = Math.min(finalScore, Math.round((minCritical + finalScore) / 2));
-        }
-
-        // 3. If semantic layer is strongly suspicious (< 40),
-        //    cap the overall trust score so clearly AI-like
-        //    sizes/ratios cannot receive very high trust.
-        if (semantic !== null && semantic < 40) {
-            finalScore = Math.min(finalScore, Math.round((semantic + finalScore) / 2), 45);
+        // 3. Resilience Logic: High Inconsistency Check
+        // If models wildly disagree (e.g., one says 90, another says 10), 
+        // tilt towards caution (lower trust).
+        if (activeScores.length > 1) {
+            const maxScore = Math.max(...activeScores);
+            const minScore = Math.min(...activeScores);
+            if (maxScore - minScore > 60) {
+                finalScore = Math.min(finalScore, 45); // Clamp to "Likely Synthetic"
+            }
         }
 
         return {
             trust_score: finalScore,
             verdict: this.getVerdict(finalScore, layerScores),
-            explanation: this.generateExplanation(finalScore, layerScores)
+            explanation: this.generateExplanation(finalScore, layerScores, activeScores)
         };
     }
 
     getVerdict(score, layers = {}) {
-        const visual = typeof layers.visual === 'number' ? layers.visual : null;
-        const metadata = typeof layers.metadata === 'number' ? layers.metadata : null;
-        const semantic = typeof layers.semantic === 'number' ? layers.semantic : null;
-
-        const strongVisualSuspicion = visual !== null && visual < 40;
-        const strongMetaSuspicion = metadata !== null && metadata < 55;
-        const strongSemanticSuspicion = semantic !== null && semantic < 50;
-
-        // High-confidence synthetic: semantic + at least one other weak signal
-        if (strongSemanticSuspicion && (strongVisualSuspicion || strongMetaSuspicion)) {
-            return score < 60 ? 'synthetic' : 'likely_synthetic';
-        }
-
-        // Visual + metadata both weak (regardless of semantic)
-        if (strongVisualSuspicion && strongMetaSuspicion) {
-            return score < 55 ? 'synthetic' : 'likely_synthetic';
-        }
-
-        // If visual integrity is high and no other layer screams manipulation,
-        // err on the side of "inconclusive" instead of "synthetic".
-        if (visual !== null && visual >= 70 && !strongMetaSuspicion && !strongSemanticSuspicion) {
-            if (score >= 90) return 'authentic';
-            if (score >= 80) return 'probably_authentic';
-            return 'inconclusive';
-        }
-
-        // Fallback purely numeric mapping (more conservative).
-        if (score >= 90) return 'authentic';
-        if (score >= 80) return 'probably_authentic';
-        if (score >= 60) return 'inconclusive';
-        if (score >= 45) return 'likely_synthetic';
+        if (score >= 85) return 'authentic';
+        if (score >= 70) return 'probably_authentic';
+        if (score >= 50) return 'inconclusive';
+        if (score >= 30) return 'likely_synthetic';
         return 'synthetic';
     }
 
-    generateExplanation(score, layers) {
+    generateExplanation(score, layers, activeScores) {
         if (score < 40) {
-            const failingLayer = Object.entries(layers).sort((a, b) => a[1] - b[1])[0];
-            return `Critical manipulation detected in ${failingLayer[0]} layer. Trust score reflects high probability of synthetic origins.`;
+            return `Consensus amongst forensic layers indicates high probability of synthetic origins.`;
         }
-        return 'Majority of authentication layers show consistent signals. Content appears likely authentic.';
+        if (score >= 80) {
+            return `Consistent natural signals detected across multiple forensic specialists. Support for authenticity is high.`;
+        }
+        return 'Forensic signals are mixed or lack strong diagnostic markers. Content is classified as inconclusive.';
     }
 }
 

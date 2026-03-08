@@ -1,6 +1,7 @@
 import librosa
 import numpy as np
 import os
+from config import SPECTRAL_FLATNESS_THRESHOLD, SPECTRAL_FLUX_THRESHOLD, ZCR_THRESHOLD
 
 class AudioSpecialist:
     def __init__(self):
@@ -36,10 +37,10 @@ class AudioSpecialist:
             findings = []
 
             # 5. Composite Scoring: Low flux or extreme flatness suggests synthetic origin
-            if flatness < 0.0001:
+            if flatness < SPECTRAL_FLATNESS_THRESHOLD:
                 score -= 60
                 findings.append(f"CRITICAL: Unnatural spectral tonality (flatness: {flatness:.6f}). Characteristic of pure synthesis.")
-            elif flux < 0.5: # Corrected threshold for noisy authentic speech
+            elif flux < SPECTRAL_FLUX_THRESHOLD: # Corrected threshold for noisy authentic speech
                 score -= 30
                 findings.append(f"WARNING: Low frequency jitter detected (flux: {flux:.4f}). Potential AI post-processing.")
             else:
@@ -47,7 +48,7 @@ class AudioSpecialist:
 
             # 6. High-frequency noise artifacts consistent with low-bitrate AI generation
             # Only suspicious if the overall signal is 'clean' (low flatness)
-            if zcr > 0.5 and flatness < 0.01:
+            if zcr > ZCR_THRESHOLD and flatness < 0.01:
                 score -= 10
                 findings.append("High-frequency noise artifacts consistent with low-bitrate AI generation found.")
 
