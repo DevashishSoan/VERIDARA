@@ -28,6 +28,10 @@ async def ingest_media(file: UploadFile = File(...)):
     if file.content_type not in allowed_types:
         raise HTTPException(status_code=422, detail="Unsupported media type")
     
+    # 1.1 Reject 0-byte files
+    if file.size == 0:
+        raise HTTPException(status_code=422, detail="Empty file payload")
+    
     # 2. Generate unique job ID and filename
     job_id = str(uuid.uuid4())
     file_ext = os.path.splitext(file.filename)[1]
