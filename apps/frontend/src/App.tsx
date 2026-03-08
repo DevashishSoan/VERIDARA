@@ -251,7 +251,7 @@ const App: React.FC = () => {
     discoverBackend();
 
     // Discovery loop: Faster when searching/offline, slower when online
-    const interval = setInterval(discoverBackend, nodeStatus === 'online' ? 5 * 60 * 1000 : 15 * 000);
+    const interval = setInterval(discoverBackend, nodeStatus === 'online' ? 5 * 60 * 1000 : 15000);
     return () => clearInterval(interval);
   }, [activeApiUrl, nodeStatus]);
 
