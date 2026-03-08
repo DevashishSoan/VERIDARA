@@ -36,18 +36,24 @@ ALTER TABLE public.analysis_results ENABLE ROW LEVEL SECURITY;
 -- Allow users to insert and select their own jobs
 CREATE POLICY "Users can insert their own jobs" 
     ON public.analysis_jobs FOR INSERT 
-    WITH CHECK (true);
+    WITH CHECK (auth.uid() = user_id);
 
 CREATE POLICY "Users can view their own jobs" 
     ON public.analysis_jobs FOR SELECT 
-    USING (true);
+    USING (auth.uid() = user_id);
 
--- Allow anyone to read the results
-CREATE POLICY "Users can view results" 
+-- Allow users to view their own results (via job ownership)
+CREATE POLICY "Users can view their own results" 
     ON public.analysis_results FOR SELECT 
-    USING (true);
+    USING (
+        EXISTS (
+            SELECT 1 FROM public.analysis_jobs 
+            WHERE public.analysis_jobs.id = public.analysis_results.job_id 
+            AND public.analysis_jobs.user_id = auth.uid()
+        )
+    );
 
-CREATE POLICY "Users can insert results" 
+CREATE POLICY "Systems can insert results" 
     ON public.analysis_results FOR INSERT 
     WITH CHECK (true);
 
