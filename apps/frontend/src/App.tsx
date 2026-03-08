@@ -17,7 +17,7 @@ import {
 } from 'lucide-react';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
-import { supabase } from './lib/supabaseClient';
+import { supabase, isMock } from './lib/supabaseClient';
 
 const ForensicDashboard = React.lazy(() => import('./components/ForensicDashboard'));
 
@@ -194,6 +194,7 @@ const App: React.FC = () => {
   const [authLoading, setAuthLoading] = useState(false);
   const [authError, setAuthError] = useState<string | null>(null);
   const [analysisError, setAnalysisError] = useState<string | null>(null);
+  const [nodeStatus, setNodeStatus] = useState<'searching' | 'online' | 'offline' | 'misconfigured'>('searching');
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
 
   const { scrollYProgress } = useScroll();
@@ -226,12 +227,22 @@ const App: React.FC = () => {
           .eq('key', 'active_tunnel_url')
           .single();
 
-        if (!error && data?.value && data.value !== activeApiUrl) {
+        if (error) {
+          console.error('Discovery: Supabase query failed.', error);
+          setNodeStatus(isMock ? 'misconfigured' : 'offline');
+          return;
+        }
+
+        if (data?.value) {
           console.log('Discovery: Forensic gateway found at', data.value);
           setActiveApiUrl(data.value);
+          setNodeStatus('online');
+        } else {
+          setNodeStatus('offline');
         }
       } catch (err) {
-        // Silent fail, keep current state
+        console.error('Discovery: Unexpected error.', err);
+        setNodeStatus('offline');
       }
     };
 
@@ -326,11 +337,21 @@ const App: React.FC = () => {
             } catch (fallbackError) {
               console.error('Fallback fetch to local gateway failed:', fallbackError);
               const isHttps = window.location.protocol === 'https:';
-              const mixedContentMsg = isHttps ? ' Note: Your browser may be blocking the local HTTP fallback because this site is HTTPS (Mixed Content).' : '';
-              throw new Error(`CONNECTION_FAILURE: Could not reach the forensic gateway (tunnel and localhost both failed). Please ensure the backend stack is running with .\\start_truthlens.ps1.${mixedContentMsg}`);
+              const discoveryFailed = nodeStatus !== 'online';
+              let msg = `CONNECTION_FAILURE: Could not reach the forensic gateway (tunnel and localhost both failed).`;
+
+              if (discoveryFailed) {
+                msg += ` Note: The Dynamic Discovery system has NOT yet located an active backend node. If this site was deployed without Supabase secrets, please configure them in GitHub.`;
+              }
+
+              if (isHttps) {
+                msg += ` Also, your browser is blocking the local HTTP fallback because this site is HTTPS (Mixed Content).`;
+              }
+
+              throw new Error(msg);
             }
           } else {
-            throw new Error('CONNECTION_FAILURE: Could not reach the forensic gateway. Please ensure the backend stack is running and try again.');
+            throw new Error(`CONNECTION_FAILURE: Could not reach the forensic gateway at ${apiUrl}. Node Status: ${nodeStatus.toUpperCase()}.`);
           }
         }
 
@@ -456,7 +477,19 @@ const App: React.FC = () => {
         </div>
         <div className="flex items-center gap-6">
           {user ? (
-            <button onClick={() => supabase.auth.signOut()} className="text-[9px] font-black uppercase tracking-[0.3em] text-white/25 hover:text-white transition-colors">Sign Out</button>
+            <div className="flex items-center gap-6">
+              <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/[0.03] border border-white/[0.05]">
+                <div className={cn(
+                  "w-1.5 h-1.5 rounded-full animate-pulse",
+                  nodeStatus === 'online' ? "bg-primary shadow-[0_0_8px_var(--color-primary)]" :
+                    nodeStatus === 'searching' ? "bg-yellow-500" : "bg-risk"
+                )} />
+                <span className="text-[8px] font-black uppercase tracking-[0.2em] text-white/30">
+                  Node: {nodeStatus.toUpperCase()}
+                </span>
+              </div>
+              <button onClick={() => supabase.auth.signOut()} className="text-[9px] font-black uppercase tracking-[0.3em] text-white/25 hover:text-white transition-colors">Sign Out</button>
+            </div>
           ) : (
             <button onClick={() => setIsAuthModalOpen(true)} className="btn-cinematic-outline py-3 px-8 text-[9px] border-white/[0.06]">Access Console</button>
           )}

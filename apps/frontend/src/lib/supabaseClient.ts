@@ -7,4 +7,5 @@ if (supabaseUrl === 'https://mock-veridara.supabase.co') {
     console.warn('Supabase credentials missing. Cloud persistence may be disabled, using mock client to prevent crash.');
 }
 
+export const isMock = supabaseUrl === 'https://mock-veridara.supabase.co';
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
