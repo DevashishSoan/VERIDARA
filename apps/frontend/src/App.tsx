@@ -250,10 +250,10 @@ const App: React.FC = () => {
     // Initial discovery
     discoverBackend();
 
-    // Periodic refresh every 5 mins
-    const interval = setInterval(discoverBackend, 5 * 60 * 1000);
+    // Discovery loop: Faster when searching/offline, slower when online
+    const interval = setInterval(discoverBackend, nodeStatus === 'online' ? 5 * 60 * 1000 : 15 * 000);
     return () => clearInterval(interval);
-  }, [activeApiUrl]);
+  }, [activeApiUrl, nodeStatus]);
 
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
