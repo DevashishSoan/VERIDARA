@@ -70,9 +70,26 @@ class VisualSpecialist:
             edges = cv2.Canny(img, 100, 200)
             edge_density = np.sum(edges) / (h * w * 255)
             
+            # --- NEW: Symmetry Audit ---
+            # AI often generates perfectly centered, symmetrical subjects.
+            flipped_img = cv2.flip(img, 1)
+            symmetry_error = np.mean(cv2.absdiff(img, flipped_img)) / 255.0
+            is_overly_symmetrical = symmetry_error < 0.12 # Lower = more symmetrical
+            
             # 4. Enhanced Noise Statistics (MFNA)
             denoised = cv2.medianBlur(img, 3)
             noise_residual = cv2.absdiff(img, denoised)
+            
+            # --- NEW: Edge Consistency ---
+            # Detect sharp edges that don't match the surrounding noise (common in composition-based AI)
+            edge_dilated = cv2.dilate(edges, np.ones((5,5), np.uint8))
+            edge_mask = (edge_dilated > 0)
+            non_edge_mask = ~edge_mask
+            
+            # Ensure we have enough pixels in both masks
+            non_edge_std = np.std(noise_residual[non_edge_mask]) if np.sum(non_edge_mask) > 100 else 1.0
+            edge_std = np.std(noise_residual[edge_mask]) if np.sum(edge_mask) > 100 else 1.0
+            edge_noise_ratio = edge_std / non_edge_std if non_edge_std > 0 else 1.0
             std_dev = np.std(noise_residual)
             
             # 5. Deep Texture Audit (Block-based Analysis)
@@ -148,6 +165,19 @@ class VisualSpecialist:
             if spectral_peak > 235:
                 score -= 20
                 findings.append(f"Spectral Artifact: Periodic spikes (peak:{spectral_peak:.1f}).")
+
+            # Apply Symmetry Penalty
+            if is_overly_symmetrical and not is_potential_scan and not is_vibrant:
+                score -= 15
+                findings.append(f"Compositional Audit: Unnatural vertical symmetry detected (error:{symmetry_error:.3f}).")
+
+            # Apply Edge Consistency Penalty
+            if edge_noise_ratio > 2.5: # Hard edge transition with no matching grain
+                score -= 25
+                findings.append(f"Edge Inconsistency: Synthetic sharp-on-soft transition (ratio:{edge_noise_ratio:.2f}).")
+            elif edge_noise_ratio < 0.5: # Overly blurry edges compared to background
+                score -= 10
+                findings.append("Edge Inconsistency: Anomalous edge softness.")
 
             # Final Variance Catch: If the image is a solid block, variance is near zero
             final_pixel_var = np.var(img)

@@ -1,9 +1,9 @@
 import os
 
 # --- Visual Specialist Thresholds ---
-FLAT_RATIO_THRESHOLD = 0.12        # Ratio of "perfectly flat" tiles to trigger suspicion
-TEXTURE_VAR_THRESHOLD = 2.0        # Coefficient of variation for noise inconsistency
-ELA_VAL_THRESHOLD = 0.5            # Mean difference in Error Level Analysis
+FLAT_RATIO_THRESHOLD = 0.08        # Tightened from 0.12 to catch subtle AI smoothing
+TEXTURE_VAR_THRESHOLD = 1.5        # Coefficient of variation for noise inconsistency (was 2.0)
+ELA_VAL_THRESHOLD = 0.4            # Mean difference in Error Level Analysis
 SCAN_EDGE_DENSITY_REQ = 0.05       # Minimum edge density to qualify as a "document scan"
 SCAN_STD_DEV_LIMIT = 3.0           # Maximum valid noise for a clean scan
 AUTHENTIC_STD_DEV_MIN = 3.5        # Minimum noise to earn "Authentic Grain" boost

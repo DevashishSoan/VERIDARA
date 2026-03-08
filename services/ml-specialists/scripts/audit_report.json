@@ -1,42 +1,20 @@
 {
     "summary": {
-        "total_files": 3,
+        "total_files": 1,
         "passed": 1,
-        "failed": 2,
-        "accuracy": 33.33333333333333
+        "failed": 0,
+        "accuracy": 100.0
     },
     "details": [
         {
-            "file": "real.png",
-            "category": "authentic",
-            "score": 52.0,
-            "is_correct": false,
-            "findings": [
-                "Inconsistent Grain: Patchy texture variance (var:6.41).",
-                "Authentic Grain: Natural pixel variance detected (std:15.08).",
-                "Vibrancy Audit: High-vibrancy detected. Scan tolerance disabled for saturated scene."
-            ]
-        },
-        {
-            "file": "ai_smooth.png",
+            "file": "symmetrical.png",
             "category": "synthetic",
             "score": 16.0,
             "is_correct": true,
             "findings": [
-                "Texture Audit: Block-level perfection detected (ratio:0.33).",
-                "Inconsistent Grain: Patchy texture variance (var:5.12).",
-                "Authentic Grain: Natural pixel variance detected (std:8.48)."
-            ]
-        },
-        {
-            "file": "deepfake.png",
-            "category": "synthetic",
-            "score": 68.0,
-            "is_correct": false,
-            "findings": [
-                "Authentic Grain: Natural pixel variance detected (std:3.53).",
-                "Vibrancy Audit: High-vibrancy detected. Scan tolerance disabled for saturated scene.",
-                "Spectral Artifact: Periodic spikes (peak:340.3)."
+                "Texture Audit: Block-level perfection detected (ratio:0.60).",
+                "Inconsistent Grain: Patchy texture variance (var:1.67).",
+                "Suspicious: Low sensor noise (std:2.58)."
             ]
         }
     ]

@@ -92,10 +92,12 @@ async def analyze_media(request: AnalysisRequest):
                 # Semantic Scoring: Authenticity starts at 90, reduced by anomalies
                 semantic_score = 90
                 
-                # Check 1: Generator-native resolutions (1024x1024, 512x512, 1024x1536)
+                # Check 1: Generator-native resolutions (Updated for v6/Flux)
                 ai_resolutions = [
                     (512, 512), (1024, 1024), (2048, 2048),
-                    (1024, 1536), (1536, 1024), (768, 1024), (1024, 768)
+                    (1024, 1536), (1536, 1024), (768, 1024), (1024, 768),
+                    (832, 1216), (1216, 832), # Flux/SDXL defaults
+                    (1456, 816), (816, 1456)   # Widescreen AI standards
                 ]
                 if (w, h) in ai_resolutions:
                     semantic_score -= 55  # Stronger suspicion for generator-native sizes
