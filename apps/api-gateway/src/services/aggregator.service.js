@@ -43,6 +43,7 @@ class MetaAggregator {
             if (weight === undefined || weight === 0) continue;
 
             const score = typeof rawScore === 'number' ? rawScore : 50;
+            console.log(`[AGGREGATOR] Layer: ${layer.padEnd(10)} | Score: ${score} | Weight: ${weight}`);
 
             // Collect active signals for mean average fallback/comparison
             activeScores.push(score);
@@ -56,6 +57,10 @@ class MetaAggregator {
         let meanScore = activeScores.length > 0
             ? Math.round(activeScores.reduce((a, b) => a + b, 0) / activeScores.length)
             : 50;
+
+        console.log(`[AGGREGATOR] --- Blend Logic ---`);
+        console.log(`[AGGREGATOR] Weighted Score: ${weightedScore}`);
+        console.log(`[AGGREGATOR] Mean Score    : ${meanScore}`);
 
         // Final Score: A blend of weighted importance and raw mean consistency
         // This reduces the risk of one biased model dominating the result.

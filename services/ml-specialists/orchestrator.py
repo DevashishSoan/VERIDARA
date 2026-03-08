@@ -39,7 +39,12 @@ async def analyze_media(request: AnalysisRequest):
     base_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
     abs_path = os.path.normpath(os.path.join(base_dir, "storage", "uploads", filename))
     
-    print(f"[ORCH] Analyzing {request.media_type}: {abs_path}")
+    import hashlib
+    with open(abs_path, "rb") as f:
+        file_hash = hashlib.md5(f.read()).hexdigest()
+    
+    print(f"[ORCH] Analyzing {request.media_type}: {filename}")
+    print(f"[ORCH] Incoming image MD5: {file_hash}")
     
     if not os.path.exists(abs_path):
         print(f"[ORCH] ERROR: File not found at {abs_path}")
@@ -102,6 +107,7 @@ async def analyze_media(request: AnalysisRequest):
                 if ratio == 1.0 or ratio == 1.5 or ratio == 0.75:
                     semantic_score -= 15
                 
+                print(f"[ORCH] SEMANTIC Score: {semantic_score} (Resolution: {w}x{h}, Ratio: {ratio:.3f})")
                 results["semantic"] = max(0, semantic_score)
     except:
         results["semantic"] = 50

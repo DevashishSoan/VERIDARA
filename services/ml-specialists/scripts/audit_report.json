@@ -1,31 +1,42 @@
 {
     "summary": {
-        "total_files": 2,
-        "passed": 2,
-        "failed": 0,
-        "accuracy": 100.0
+        "total_files": 3,
+        "passed": 1,
+        "failed": 2,
+        "accuracy": 33.33333333333333
     },
     "details": [
         {
-            "file": "real_sample.jpg",
+            "file": "real.png",
             "category": "authentic",
-            "score": 68.0,
-            "is_correct": true,
+            "score": 52.0,
+            "is_correct": false,
             "findings": [
-                "Authentic Grain: Natural pixel variance detected (std:3.55).",
-                "Spectral Artifact: Periodic spikes (peak:346.5).",
-                "Missing EXIF metadata. This is suspicious for high-end camera originals but common for scans/screenshots."
+                "Inconsistent Grain: Patchy texture variance (var:6.41).",
+                "Authentic Grain: Natural pixel variance detected (std:15.08).",
+                "Vibrancy Audit: High-vibrancy detected. Scan tolerance disabled for saturated scene."
             ]
         },
         {
-            "file": "ai_sample.jpg",
+            "file": "ai_smooth.png",
             "category": "synthetic",
             "score": 16.0,
             "is_correct": true,
             "findings": [
-                "Texture Audit: Block-level perfection detected (ratio:1.00).",
-                "Forensic Anomaly: Flat compression grid (val:0.00).",
-                "AI Signature: Zero-noise surface (std:0.00)."
+                "Texture Audit: Block-level perfection detected (ratio:0.33).",
+                "Inconsistent Grain: Patchy texture variance (var:5.12).",
+                "Authentic Grain: Natural pixel variance detected (std:8.48)."
+            ]
+        },
+        {
+            "file": "deepfake.png",
+            "category": "synthetic",
+            "score": 68.0,
+            "is_correct": false,
+            "findings": [
+                "Authentic Grain: Natural pixel variance detected (std:3.53).",
+                "Vibrancy Audit: High-vibrancy detected. Scan tolerance disabled for saturated scene.",
+                "Spectral Artifact: Periodic spikes (peak:340.3)."
             ]
         }
     ]
