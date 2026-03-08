@@ -34,15 +34,18 @@ ALTER TABLE public.analysis_jobs ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.analysis_results ENABLE ROW LEVEL SECURITY;
 
 -- Allow users to insert and select their own jobs
+DROP POLICY IF EXISTS "Users can insert their own jobs" ON public.analysis_jobs;
 CREATE POLICY "Users can insert their own jobs" 
     ON public.analysis_jobs FOR INSERT 
     WITH CHECK (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can view their own jobs" ON public.analysis_jobs;
 CREATE POLICY "Users can view their own jobs" 
     ON public.analysis_jobs FOR SELECT 
     USING (auth.uid() = user_id);
 
 -- Allow users to view their own results (via job ownership)
+DROP POLICY IF EXISTS "Users can view their own results" ON public.analysis_results;
 CREATE POLICY "Users can view their own results" 
     ON public.analysis_results FOR SELECT 
     USING (
@@ -53,6 +56,7 @@ CREATE POLICY "Users can view their own results"
         )
     );
 
+DROP POLICY IF EXISTS "Systems can insert results" ON public.analysis_results;
 CREATE POLICY "Systems can insert results" 
     ON public.analysis_results FOR INSERT 
     WITH CHECK (true);
@@ -66,7 +70,9 @@ CREATE TABLE IF NOT EXISTS public.system_config (
 
 -- Allow anyone to read the config
 ALTER TABLE public.system_config ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Public read config" ON public.system_config;
 CREATE POLICY "Public read config" ON public.system_config FOR SELECT USING (true);
+DROP POLICY IF EXISTS "Allow anyone to upsert config" ON public.system_config;
 CREATE POLICY "Allow anyone to upsert config" ON public.system_config FOR ALL USING (true) WITH CHECK (true);
 
 -- Insert initial empty tunnel key
