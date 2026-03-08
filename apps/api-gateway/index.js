@@ -42,8 +42,8 @@ app.use(helmet({
 
 app.use(cors({
     origin: (origin, callback) => {
-        // Allow localhost and any github.io subdomains
-        if (!origin || origin.endsWith('.github.io') || origin.includes('localhost')) {
+        // Allow localhost, trycloudflare, and any github.io subdomains
+        if (!origin || origin.endsWith('.github.io') || origin.includes('localhost') || origin.includes('trycloudflare.com')) {
             callback(null, true);
         } else {
             callback(new Error('Not allowed by CORS'));
@@ -57,7 +57,8 @@ app.use(morgan('dev'));
 app.use(express.json());
 
 app.get('/health', (req, res) => {
-    res.json({ status: 'up', timestamp: new Date(), version: '1.1.0' });
+    res.setHeader('Cache-Control', 'no-cache');
+    res.json({ status: 'up', timestamp: new Date(), version: '1.3.0' });
 });
 
 const jobCache = new Map();

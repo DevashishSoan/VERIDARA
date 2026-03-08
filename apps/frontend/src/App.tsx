@@ -296,7 +296,9 @@ const App: React.FC = () => {
               });
             } catch (fallbackError) {
               console.error('Fallback fetch to local gateway failed:', fallbackError);
-              throw new Error('CONNECTION_FAILURE: Could not reach the forensic gateway (tunnel and localhost both failed). Please ensure the backend stack is running with .\\start_truthlens.ps1');
+              const isHttps = window.location.protocol === 'https:';
+              const mixedContentMsg = isHttps ? ' Note: Your browser may be blocking the local HTTP fallback because this site is HTTPS (Mixed Content).' : '';
+              throw new Error(`CONNECTION_FAILURE: Could not reach the forensic gateway (tunnel and localhost both failed). Please ensure the backend stack is running with .\\start_truthlens.ps1.${mixedContentMsg}`);
             }
           } else {
             throw new Error('CONNECTION_FAILURE: Could not reach the forensic gateway. Please ensure the backend stack is running and try again.');
