@@ -72,9 +72,14 @@ class VisualSpecialist:
             
             # --- NEW: Symmetry Audit ---
             # AI often generates perfectly centered, symmetrical subjects.
+            # We scale the threshold by image contrast to avoid false positives on noise/scans.
             flipped_img = cv2.flip(img, 1)
             symmetry_error = np.mean(cv2.absdiff(img, flipped_img)) / 255.0
-            is_overly_symmetrical = symmetry_error < 0.12 # Lower = more symmetrical
+            
+            # For noise or flat images, symmetry error is naturally low.
+            # We only penalize if it's "too symmetrical" relative to its own variance.
+            contrast_factor = max(0.01, np.std(img) / 255.0)
+            is_overly_symmetrical = (symmetry_error / contrast_factor) < 0.6 if contrast_factor > 0.05 else False
             
             # 4. Enhanced Noise Statistics (MFNA)
             denoised = cv2.medianBlur(img, 3)

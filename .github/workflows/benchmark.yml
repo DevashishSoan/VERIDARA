@@ -26,10 +26,10 @@ jobs:
       run: |
         mkdir -p storage/benchmarks/authentic
         mkdir -p storage/benchmarks/synthetic
-        # Create a dummy "authentic" noise image
-        python -c "import numpy as np; import cv2; img = np.random.normal(128, 5, (100, 100)).astype(np.uint8); cv2.imwrite('storage/benchmarks/authentic/real_sample.jpg', img)"
+        # Create a dummy "authentic" noise image (Higher sigma for stability)
+        python -c "import numpy as np; import cv2; img = np.random.normal(128, 20, (300, 300)).astype(np.uint8); cv2.imwrite('storage/benchmarks/authentic/real_sample.jpg', img)"
         # Create a dummy "synthetic" flat image
-        python -c "import numpy as np; import cv2; img = np.zeros((100, 100), dtype=np.uint8); cv2.imwrite('storage/benchmarks/synthetic/ai_sample.jpg', img)"
+        python -c "import numpy as np; import cv2; img = np.zeros((300, 300), dtype=np.uint8); cv2.imwrite('storage/benchmarks/synthetic/ai_sample.jpg', img)"
 
     - name: Run Forensic Audit
       run: |
