@@ -98,11 +98,20 @@ if ($url -ne "") {
                 
                 if ($sbUrl -and $sbKey) {
                     Write-Output "Registering tunnel in Supabase for cross-device discovery..."
-                    $body = @{ value = $url; updated_at = (Get-Date).ToString("yyyy-MM-ddTHH:mm:ssZ") } | ConvertTo-Json
-                    $headers = @{ "apikey" = $sbKey; "Authorization" = "Bearer $sbKey"; "Content-Type" = "application/json"; "Prefer" = "resolution=merge-duplicates" }
+                    $body = @{ 
+                        key        = "active_tunnel_url"; 
+                        value      = $url; 
+                        updated_at = (Get-Date).ToString("yyyy-MM-ddTHH:mm:ssZ") 
+                    } | ConvertTo-Json
+                    $headers = @{ 
+                        "apikey"        = $sbKey; 
+                        "Authorization" = "Bearer $sbKey"; 
+                        "Content-Type"  = "application/json"; 
+                        "Prefer"        = "resolution=merge-duplicates" 
+                    }
                     
-                    # Upsert to system_config table
-                    Invoke-RestMethod -Uri "$sbUrl/rest/v1/system_config?key=eq.active_tunnel_url" -Method Post -Headers $headers -Body $body -ErrorAction Stop
+                    # Upsert to system_config table (Body must contain the PK for resolution=merge-duplicates)
+                    Invoke-RestMethod -Uri "$sbUrl/rest/v1/system_config" -Method Post -Headers $headers -Body $body -ErrorAction Stop
                     Write-Output "Dynamic Discovery: Tunnel registered successfully."
                 }
             }

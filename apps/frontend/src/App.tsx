@@ -238,6 +238,7 @@ const App: React.FC = () => {
           setActiveApiUrl(data.value);
           setNodeStatus('online');
         } else {
+          console.warn('Discovery: No active tunnel URL registered in Supabase.');
           setNodeStatus('offline');
         }
       } catch (err) {
