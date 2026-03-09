@@ -122,37 +122,51 @@ class VisualSpecialist:
             # If it's vibrant (vivid colors), we disable the scan boost to catch complex AI scenes.
             is_potential_scan = edge_density > SCAN_EDGE_DENSITY_REQ and std_dev < SCAN_STD_DEV_LIMIT and not is_vibrant
 
-            # Scoring based on Texture Audit (Harsher for v2.3)
-            if flat_ratio > FLAT_RATIO_THRESHOLD:
-                score -= 45
-                findings.append(f"Texture Audit: Block-level perfection detected (ratio:{flat_ratio:.2f}).")
+            # Scoring based on Texture Audit (Continuous for higher entropy)
+            # 1. Flat Ratio Penalty (Scales up to 45)
+            if flat_ratio > 0.05:
+                p_flat = min(45, (flat_ratio / FLAT_RATIO_THRESHOLD) * 45)
+                score -= p_flat
+                findings.append(f"Texture Audit: Block-level perfection detected (ratio:{flat_ratio:.3f}, penalty:-{p_flat:.1f}).")
             
-            if texture_inconsistency > TEXTURE_VAR_THRESHOLD:
-                score -= 20
-                findings.append(f"Inconsistent Grain: Patchy texture variance (var:{texture_inconsistency:.2f}).")
+            # 2. Inconsistency Penalty (Scales up to 20)
+            if texture_inconsistency > 0.5:
+                p_inc = min(20, (texture_inconsistency / TEXTURE_VAR_THRESHOLD) * 20)
+                score -= p_inc
+                findings.append(f"Inconsistent Grain: Patchy texture variance (var:{texture_inconsistency:.3f}, penalty:-{p_inc:.1f}).")
 
+            # 3. ELA Penalty (Continuous)
             if ela_val < ELA_VAL_THRESHOLD:
+                p_ela = 35 * (1.0 - (ela_val / ELA_VAL_THRESHOLD))
                 if not is_potential_scan:
-                    score -= 35
-                    findings.append(f"Forensic Anomaly: Flat compression grid (val:{ela_val:.2f}).")
+                    score -= p_ela
+                    findings.append(f"Forensic Anomaly: Flat compression grid (val:{ela_val:.3f}, penalty:-{p_ela:.1f}).")
                 else:
-                    score -= 10
-                    findings.append(f"Scan Profile: Low ELA response (val:{ela_val:.2f}).")
+                    p_ela_scan = 10 * (1.0 - (ela_val / ELA_VAL_THRESHOLD))
+                    score -= p_ela_scan
+                    findings.append(f"Scan Profile: Low ELA response (val:{ela_val:.3f}, penalty:-{p_ela_scan:.1f}).")
             
-            # Stricter Noise Bounds with Skeptical Growth
+            # 4. Noise Statistics (Stricter and Continuous)
             if std_dev < 1.0:
-                score -= 40
-                findings.append(f"AI Signature: Zero-noise surface (std:{std_dev:.2f}).")
+                p_noise = 40 * (1.0 - std_dev)
+                score -= p_noise
+                findings.append(f"AI Signature: Zero-noise surface (std:{std_dev:.3f}, penalty:-{p_noise:.1f}).")
             elif std_dev < SCAN_STD_DEV_LIMIT:
                 if not is_potential_scan:
-                    score -= 15
-                    findings.append(f"Suspicious: Low sensor noise (std:{std_dev:.2f}).")
+                    # Scale penalty from 15 (near 1.0) down to 0 (near limit)
+                    p_noise = 15 * (1.0 - (std_dev - 1.0) / (SCAN_STD_DEV_LIMIT - 1.0))
+                    score -= p_noise
+                    findings.append(f"Suspicious: Low sensor noise (std:{std_dev:.3f}, penalty:-{p_noise:.1f}).")
                 else:
-                    score += 15 # Scan tolerance boost (now harder to earn)
-                    findings.append(f"Scan Verification: Low noise (std:{std_dev:.2f}) matches document scan profile.")
+                    # Scan tolerance boost: increase as noise increases within the scan range
+                    b_noise = 15 * (std_dev / SCAN_STD_DEV_LIMIT)
+                    score += b_noise
+                    findings.append(f"Scan Verification: Low noise (std:{std_dev:.3f}) earns boost (+{b_noise:.1f}).")
             elif std_dev > AUTHENTIC_STD_DEV_MIN:
-                score += 35 # Natural sensor noise 'earns' high trust
-                findings.append(f"Authentic Grain: Natural pixel variance detected (std:{std_dev:.2f}).")
+                # Authentic boost scales up to 35
+                b_auth = min(35, 35 * ((std_dev - AUTHENTIC_STD_DEV_MIN) / 5.0))
+                score += b_auth
+                findings.append(f"Authentic Grain: Natural pixel variance earns boost (+{b_auth:.1f}).")
 
             # Final Calibration: High edge density earns a boost ONLY if low vibrancy verified
             if is_potential_scan:

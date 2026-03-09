@@ -99,17 +99,30 @@ async def analyze_media(request: AnalysisRequest):
                     (832, 1216), (1216, 832), # Flux/SDXL defaults
                     (1456, 816), (816, 1456)   # Widescreen AI standards
                 ]
-                if (w, h) in ai_resolutions:
-                    semantic_score -= 55  # Stronger suspicion for generator-native sizes
+                # Check 1: Generator-native resolutions (Continuous Proximity)
+                ai_resolutions = [
+                    (512, 512), (1024, 1024), (2048, 2048),
+                    (1024, 1536), (1536, 1024), (768, 1024), (1024, 768),
+                    (832, 1216), (1216, 832), (1456, 816), (816, 1456)
+                ]
                 
-                # Check 2: Perfect Aspect Ratio Precision
-                # Real camera photos often have float residuals in aspect ratio due to sensor cropping.
-                # AI is often exactly 1.0, 1.5, or 0.666...
+                # Find closest AI resolution
+                min_dist = min([abs(w - res[0]) + abs(h - res[1]) for res in ai_resolutions])
+                if min_dist < 40: # Within 40px of total dimension difference
+                    p_res = 55 * (1.0 - (min_dist / 40.0))
+                    semantic_score -= p_res
+                    print(f"[ORCH] Resolution Match: Closest AI target distance {min_dist}px (penalty:-{p_res:.1f})")
+                
+                # Check 2: Aspect Ratio Precision (Continuous)
                 ratio = w / h
-                if ratio == 1.0 or ratio == 1.5 or ratio == 0.75:
-                    semantic_score -= 15
+                ai_ratios = [1.0, 1.5, 1.333, 0.75, 1.777, 0.666, 0.5625]
+                min_r_dist = min([abs(ratio - r) for r in ai_ratios])
+                if min_r_dist < 0.02:
+                    p_ratio = 15 * (1.0 - (min_r_dist / 0.02))
+                    semantic_score -= p_ratio
+                    print(f"[ORCH] Ratio Match: Distance to AI standard {min_r_dist:.4f} (penalty:-{p_ratio:.1f})")
                 
-                print(f"[ORCH] SEMANTIC Score: {semantic_score} (Resolution: {w}x{h}, Ratio: {ratio:.3f})")
+                print(f"[ORCH] SEMANTIC Score: {semantic_score:.1f} (Resolution: {w}x{h}, Ratio: {ratio:.3f})")
                 results["semantic"] = max(0, semantic_score)
     except:
         results["semantic"] = 50

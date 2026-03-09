@@ -32,40 +32,56 @@ class MetadataForensics:
                     score -= 50
                     findings.append("Integrity Alert: File extension does not match binary headers.")
 
-            # 2. Check for missing EXIF (common in deepfakes/scraping)
+            # 2. Check for missing EXIF & Tag Entropy
             with open(file_path, 'rb') as f:
                 tags = exifread.process_file(f)
 
-            if not tags:
-                # Many real-world images (screenshots, scans, messaging exports)
-                # legitimately lack EXIF. Apply a softer penalty.
+            tag_count = len(tags)
+            if tag_count == 0:
                 score -= 15
-                findings.append("Missing EXIF metadata. This is suspicious for high-end camera originals but common for scans/screenshots.")
+                findings.append("Missing EXIF metadata. Suspicious for direct AI generation.")
+            else:
+                # Tag Entropy Reward: Real photos have 30-100+ tags. AI often has 5-10.
+                b_entropy = min(15, tag_count * 0.2)
+                score += b_entropy
+                findings.append(f"Metadata Entropy: {tag_count} tags found (reward:+{b_entropy:.1f}).")
             
             # 3. Check for suspicious software tags
-            software = str(tags.get('Image Software', ''))
+            software = str(tags.get('Image Software', tags.get('Image Model', '')))
             if software:
-                findings.append(f"Software detected: {software}")
-                if any(x in software for x in ['Photoshop', 'GIMP', 'Inpaint', 'Krita']):
-                    score -= 45
-                    findings.append("Manipulation software detected in metadata.")
+                suspicious_apps = ['Photoshop', 'GIMP', 'Inpaint', 'Krita', 'Midjourney', 'DALL-E']
+                matches = [app for app in suspicious_apps if app.lower() in software.lower()]
+                if matches:
+                    p_software = 45 + (len(matches) * 5) # More matches = higher penalty
+                    score -= p_software
+                    findings.append(f"Manipulation Trace: Found {', '.join(matches)} (penalty:-{p_software}).")
             
             # 4. Check for obvious AI markers in any tag
             expanded_markers = self.ai_markers + ['FLUX.1', 'Grok-2', 'Aura', 'Black Forest Labs', 'Recraft']
+            marker_found = False
             for tag, value in tags.items():
                 val_str = str(value)
                 if any(marker.lower() in val_str.lower() for marker in expanded_markers):
                     score -= 90
-                    findings.append(f"AI Generator marker found in tag {tag}: {val_str}")
+                    findings.append(f"AI Generator marker found in tag {tag} (penalty:-90.0).")
+                    marker_found = True
+                    break # One definitive marker is enough
             
-            # 5. Check for camera model (lack of it is mildly suspicious for \"real\" photos)
-            if 'Image Make' not in tags and 'Image Model' not in tags:
-                score -= 5
-                findings.append("No explicit camera make/model information found.")
+            # 5. Continuous Camera Profile Check
+            # Real photos should have Make, Model, and Exposure settings (FNumber, ISOSpeedRatings)
+            camera_signals = ['Image Make', 'Image Model', 'EXIF FNumber', 'EXIF ISOSpeedRatings']
+            signals_found = sum(1 for s in camera_signals if s in tags)
+            if signals_found < 4:
+                p_camera = (4 - signals_found) * 5.5 # Continuous penalty
+                score -= p_camera
+                findings.append(f"Incomplete Camera Profile: Found {signals_found}/4 signals (penalty:-{p_camera:.1f}).")
+            else:
+                score += 5
+                findings.append("Validated Camera Profile: Full exposure metadata present.")
 
         except Exception as e:
             findings.append(f"Analysis error: {str(e)}")
-            score = 50
+            score -= 10 # Penalty for corrupted or unreadable metadata
 
         # Bound score
         score = max(0, min(100, score))
