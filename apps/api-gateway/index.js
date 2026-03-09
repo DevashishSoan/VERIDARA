@@ -5,6 +5,7 @@ const morgan = require('morgan');
 const dotenv = require('dotenv');
 const axios = require('axios');
 const multer = require('multer');
+const rateLimit = require('express-rate-limit');
 const FormData = require('form-data');
 const authService = require('./src/services/auth.service');
 const resultsService = require('./src/services/results.service');
@@ -56,9 +57,28 @@ app.use(cors({
 app.use(morgan('dev'));
 app.use(express.json());
 
+
+// ─── Brute-Force & DoS Protection ───────────────────────────────
+const generalLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 100, // limit each IP to 100 requests per windowMs
+    message: { error: 'Too many requests. TruthLens forensic node is busy.' },
+    standardHeaders: true,
+    legacyHeaders: false,
+});
+
+const analysisLimiter = rateLimit({
+    windowMs: 60 * 60 * 1000, // 1 hour
+    max: 20, // Limit to 20 forensic scans per hour per IP
+    message: { error: 'Forensic scan quota exceeded. Please wait or upgrade your tier.' }
+});
+
+app.use(generalLimiter);
+
 app.get('/health', (req, res) => {
     res.setHeader('Cache-Control', 'no-cache');
-    res.json({ status: 'up', timestamp: new Date(), version: '1.3.0' });
+    res.setHeader('X-Forensic-Integrity', 'stable-v1');
+    res.json({ status: 'up', timestamp: new Date(), version: '1.3.1-hardened' });
 });
 
 const jobCache = new Map();
@@ -79,7 +99,7 @@ setInterval(() => {
 /**
  * CORE ANALYSIS ROUTES
  */
-app.post('/v1/analyze', protect, upload.single('file'), async (req, res) => {
+app.post('/v1/analyze', analysisLimiter, protect, upload.single('file'), async (req, res) => {
     const startTime = Date.now();
     const { media_type = 'image' } = req.body;
     const file = req.file;
