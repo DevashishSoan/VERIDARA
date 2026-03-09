@@ -309,6 +309,9 @@ const App: React.FC = () => {
         let apiUrl = activeApiUrl;
         console.log('Engaging forensic engine at:', apiUrl);
 
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 60000); // 60s timeout
+
         let response;
         try {
           response = await fetch(`${apiUrl}/v1/analyze`, {
@@ -317,9 +320,17 @@ const App: React.FC = () => {
               'Authorization': `Bearer ${session.access_token}`,
             },
             body: formData,
+            signal: controller.signal
           });
-        } catch (connectionError) {
+          clearTimeout(timeoutId);
+        } catch (connectionError: any) {
+          clearTimeout(timeoutId);
           console.error('Primary fetch failed:', connectionError);
+
+          // If it was an abort, it's a timeout
+          if (connectionError.name === 'AbortError') {
+            throw new Error('GATEWAY_TIMEOUT: The forensic engine took too long to respond. Please check your connection.');
+          }
 
           // If we were using a transient Cloudflare tunnel URL, fall back to a local gateway
           if (apiUrl.includes('trycloudflare.com')) {
@@ -1048,6 +1059,14 @@ const App: React.FC = () => {
               <div className="text-[10px] font-black uppercase tracking-[0.6em] text-primary/50 bg-primary/5 py-3 px-10 rounded-full border border-primary/15 inline-block">
                 Processing Forensic Vectors
               </div>
+              <div className="mt-12">
+                <button
+                  onClick={() => setIsAnalyzing(false)}
+                  className="text-[9px] font-black uppercase tracking-[0.3em] text-white/20 hover:text-white transition-colors py-2 px-6 border border-white/5 hover:border-white/20 rounded-full"
+                >
+                  ABORT SCAN
+                </button>
+              </div>
             </div>
           </motion.div>
         )}
@@ -1111,7 +1130,7 @@ const App: React.FC = () => {
                   <p className="text-[10px] font-black uppercase tracking-[0.5em] text-white/20">Decrypting Logic Layers...</p>
                 </div>
               }>
-                <ForensicDashboard result={result} onClose={() => setResult(null)} />
+                <ForensicDashboard result={result} apiUrl={activeApiUrl} onClose={() => setResult(null)} />
               </React.Suspense>
             </div>
           </motion.div>

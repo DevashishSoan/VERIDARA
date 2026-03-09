@@ -9,15 +9,16 @@ interface DashboardProps {
         verdict: string;
         layers: Array<{ label: string; value: number }>;
     };
+    apiUrl?: string;
     onClose: () => void;
 }
 
-const ForensicDashboard: React.FC<DashboardProps> = ({ result, onClose }) => {
+const ForensicDashboard: React.FC<DashboardProps> = ({ result, apiUrl: propApiUrl, onClose }) => {
     const isSynthetic = result.score < 50;
 
     const handleDownload = async () => {
         try {
-            let apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+            let apiUrl = propApiUrl || import.meta.env.VITE_API_URL || 'http://localhost:3001';
             let response: Response;
 
             try {
