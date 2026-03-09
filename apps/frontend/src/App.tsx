@@ -289,6 +289,13 @@ const App: React.FC = () => {
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+
+    // 100MB Limit (Cloudflare Tunnel Free Tier cap)
+    if (file.size > 100 * 1024 * 1024) {
+      setAnalysisError('FILE_TOO_LARGE: Forensic engine supports files up to 100MB. Please compress and retry.');
+      return;
+    }
+
     if (!user) { setIsAuthModalOpen(true); return; }
 
     const formData = new FormData();
@@ -310,7 +317,7 @@ const App: React.FC = () => {
         console.log('Engaging forensic engine at:', apiUrl);
 
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 60000); // 60s timeout
+        const timeoutId = setTimeout(() => controller.abort(), 180000); // 180s timeout (3 mins) for video
 
         let response;
         try {
@@ -374,6 +381,9 @@ const App: React.FC = () => {
         }
 
         if (!response.ok) {
+          if (response.status === 413) {
+            throw new Error('PAYLOAD_TOO_LARGE: This file exceeds the gateway capacity. Maximum size is 100MB.');
+          }
           const errorData = await response.json().catch(() => ({}));
           throw new Error(errorData.error || `Upload failed with status ${response.status}`);
         }

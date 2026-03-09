@@ -55,8 +55,8 @@ app.use(cors({
     credentials: true
 }));
 app.use(morgan('dev'));
-app.use(express.json({ limit: '50mb' }));
-app.use(express.urlencoded({ limit: '50mb', extended: true }));
+// Body parsers moved down to ensure they don't block large file uploads before multer
+
 
 
 // ─── Brute-Force & DoS Protection ───────────────────────────────
@@ -98,6 +98,12 @@ setInterval(() => {
 }, 60 * 1000);
 
 /**
+ * GLOBAL BODY PARSERS
+ */
+app.use(express.json({ limit: '100mb' }));
+app.use(express.urlencoded({ limit: '100mb', extended: true }));
+
+/**
  * CORE ANALYSIS ROUTES
  */
 app.post('/v1/analyze', analysisLimiter, protect, upload.single('file'), async (req, res) => {
@@ -120,7 +126,11 @@ app.post('/v1/analyze', analysisLimiter, protect, upload.single('file'), async (
         if (file) {
             const form = new FormData();
             form.append('file', file.buffer, { filename: file.originalname, contentType: file.mimetype });
-            const response = await axios.post(`${INGEST_SERVICE_URL}/ingest`, form, { headers: { ...form.getHeaders() } });
+            const response = await axios.post(`${INGEST_SERVICE_URL}/ingest`, form, {
+                headers: { ...form.getHeaders() },
+                maxContentLength: Infinity,
+                maxBodyLength: Infinity
+            });
             jobData = response.data;
             filePath = jobData.s3_key;
 
