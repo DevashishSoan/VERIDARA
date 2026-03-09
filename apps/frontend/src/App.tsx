@@ -19,7 +19,7 @@ import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import { supabase, isMock } from './lib/supabaseClient';
 
-const ForensicDashboard = React.lazy(() => import('./components/ForensicDashboard'));
+import ForensicDashboard from './components/ForensicDashboard';
 
 // ─── Utilities ───────────────────────────────────────────────
 function cn(...inputs: ClassValue[]) {
@@ -1124,14 +1124,9 @@ const App: React.FC = () => {
             className="fixed inset-0 z-[1200] bg-background/95 backdrop-blur-3xl overflow-y-auto px-6 py-10"
           >
             <div className="max-w-7xl mx-auto">
-              <React.Suspense fallback={
-                <div className="flex flex-col items-center justify-center min-h-[60vh] space-y-8 animate-pulse">
-                  <Scan size={64} className="text-primary/40" />
-                  <p className="text-[10px] font-black uppercase tracking-[0.5em] text-white/20">Decrypting Logic Layers...</p>
-                </div>
-              }>
+              {result && (
                 <ForensicDashboard result={result} apiUrl={activeApiUrl} onClose={() => setResult(null)} />
-              </React.Suspense>
+              )}
             </div>
           </motion.div>
         )}
