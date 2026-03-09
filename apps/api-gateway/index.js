@@ -44,9 +44,13 @@ app.use(helmet({
 app.use(cors({
     origin: (origin, callback) => {
         // Allow localhost, trycloudflare, and any github.io subdomains
-        if (!origin || origin.endsWith('.github.io') || origin.includes('localhost') || origin.includes('trycloudflare.com')) {
+        if (!origin ||
+            origin.includes('github.io') ||
+            origin.includes('localhost') ||
+            origin.includes('trycloudflare.com')) {
             callback(null, true);
         } else {
+            console.warn(`[CORS] Rejected origin: ${origin}`);
             callback(new Error('Not allowed by CORS'));
         }
     },
