@@ -55,13 +55,14 @@ app.use(cors({
     credentials: true
 }));
 app.use(morgan('dev'));
-app.use(express.json());
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
 
 // ─── Brute-Force & DoS Protection ───────────────────────────────
 const generalLimiter = rateLimit({
     windowMs: 15 * 60 * 1000, // 15 minutes
-    max: 100, // limit each IP to 100 requests per windowMs
+    max: 500, // Increased to 500 to allow smooth testing
     message: { error: 'Too many requests. TruthLens forensic node is busy.' },
     standardHeaders: true,
     legacyHeaders: false,

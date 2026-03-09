@@ -75,19 +75,40 @@ class ResultsService {
      */
     async getResultByJobId(jobId, client = supabase) {
         try {
-            const { data, error } = await client
+            const { data: jobs, error } = await client
                 .from('analysis_jobs')
                 .select('*, analysis_results(*)')
                 .eq('id', jobId)
-                .single();
+                .limit(1);
 
             if (error) throw error;
+            let data = jobs && jobs.length > 0 ? jobs[0] : null;
+
+            // FALLBACK: If job metadata is missing but results exist (e.g. legacy or demo data)
+            if (!data) {
+                const { data: results, error: resError } = await client
+                    .from('analysis_results')
+                    .select('*')
+                    .eq('job_id', jobId)
+                    .limit(1);
+
+                if (resError || !results || results.length === 0) return null;
+
+                const res = results[0];
+                data = {
+                    id: jobId,
+                    status: 'complete',
+                    created_at: res.created_at,
+                    analysis_results: [res]
+                };
+            }
 
             // Transform analysis_results into layers object for frontend
             if (data && data.analysis_results && data.analysis_results[0]) {
                 const res = data.analysis_results[0];
                 data.trust_score = res.trust_score;
                 data.verdict = res.verdict;
+                data.explanation = res.explanation; // Ensure explanation is carried over
                 data.layers = {
                     visual: res.visual_score,
                     temporal: res.temporal_score,
