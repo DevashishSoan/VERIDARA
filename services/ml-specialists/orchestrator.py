@@ -81,25 +81,24 @@ async def analyze_media(request: AnalysisRequest):
             results[layer] = 50
 
     # 3. Semantic Analysis (Basic Aspect Ratio & Resolution Heuristics)
-    # AI models often default to perfect squares or specific generator-native resolutions
     try:
-        if request.media_type == "image":
-            import cv2
-            img_info = cv2.imread(abs_path)
-            if img_info is not None:
-                h, w = img_info.shape[:2]
-                
-                # Semantic Scoring: Authenticity starts at 90, reduced by anomalies
+        if request.media_type in ["image", "video"]:
+            h, w = 0, 0
+            if request.media_type == "video":
+                import cv2
+                cap = cv2.VideoCapture(abs_path)
+                ret, frame = cap.read()
+                if ret:
+                    h, w = frame.shape[:2]
+                cap.release()
+            else:
+                import cv2
+                img_info = cv2.imread(abs_path)
+                if img_info is not None:
+                    h, w = img_info.shape[:2]
+            
+            if h > 0 and w > 0:
                 semantic_score = 90
-                
-                # Check 1: Generator-native resolutions (Updated for v6/Flux)
-                ai_resolutions = [
-                    (512, 512), (1024, 1024), (2048, 2048),
-                    (1024, 1536), (1536, 1024), (768, 1024), (1024, 768),
-                    (832, 1216), (1216, 832), # Flux/SDXL defaults
-                    (1456, 816), (816, 1456)   # Widescreen AI standards
-                ]
-                # Check 1: Generator-native resolutions (Continuous Proximity)
                 ai_resolutions = [
                     (512, 512), (1024, 1024), (2048, 2048),
                     (1024, 1536), (1536, 1024), (768, 1024), (1024, 768),
@@ -108,21 +107,17 @@ async def analyze_media(request: AnalysisRequest):
                 
                 # Find closest AI resolution
                 min_dist = min([abs(w - res[0]) + abs(h - res[1]) for res in ai_resolutions])
-                if min_dist < 40: # Within 40px of total dimension difference
+                if min_dist < 40:
                     p_res = 55 * (1.0 - (min_dist / 40.0))
                     semantic_score -= p_res
-                    print(f"[ORCH] Resolution Match: Closest AI target distance {min_dist}px (penalty:-{p_res:.1f})")
                 
-                # Check 2: Aspect Ratio Precision (Continuous)
                 ratio = w / h
                 ai_ratios = [1.0, 1.5, 1.333, 0.75, 1.777, 0.666, 0.5625]
                 min_r_dist = min([abs(ratio - r) for r in ai_ratios])
                 if min_r_dist < 0.02:
                     p_ratio = 15 * (1.0 - (min_r_dist / 0.02))
                     semantic_score -= p_ratio
-                    print(f"[ORCH] Ratio Match: Distance to AI standard {min_r_dist:.4f} (penalty:-{p_ratio:.1f})")
                 
-                print(f"[ORCH] SEMANTIC Score: {semantic_score:.1f} (Resolution: {w}x{h}, Ratio: {ratio:.3f})")
                 results["semantic"] = max(0, semantic_score)
     except:
         results["semantic"] = 50
