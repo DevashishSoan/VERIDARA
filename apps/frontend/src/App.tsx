@@ -251,9 +251,9 @@ const App: React.FC = () => {
     discoverBackend();
 
     // Discovery loop: Faster when searching/offline, slower when online
-    const interval = setInterval(discoverBackend, nodeStatus === 'online' ? 5 * 60 * 1000 : 15000);
+    const interval = setInterval(discoverBackend, nodeStatus === 'online' ? 2 * 60 * 1000 : 10000);
     return () => clearInterval(interval);
-  }, [activeApiUrl, nodeStatus]);
+  }, [nodeStatus]);
 
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -339,20 +339,22 @@ const App: React.FC = () => {
               console.error('Fallback fetch to local gateway failed:', fallbackError);
               const isHttps = window.location.protocol === 'https:';
               const discoveryFailed = nodeStatus !== 'online';
-              let msg = `CONNECTION_FAILURE: Could not reach the forensic gateway (tunnel and localhost both failed).`;
-
-              if (discoveryFailed) {
-                msg += ` Note: The Dynamic Discovery system has NOT yet located an active backend node. If this site was deployed without Supabase secrets, please configure them in GitHub.`;
-              }
+              let msg = `FORENSIC_OFFLINE: TruthLens Gateway is unreachable.`;
 
               if (isHttps) {
-                msg += ` Also, your browser is blocking the local HTTP fallback because this site is HTTPS (Mixed Content).`;
+                msg = `SECURE_CONTEXT_ERROR: Your browser is blocking the local forensic fallback (HTTP) because this site is HTTPS. `;
+                msg += `Please ensure the Cloudflare Tunnel is running or access the site via HTTP for local development.`;
+              } else if (discoveryFailed) {
+                msg = `DISCOVERY_FAILURE: The system could not locate an active forensic node in the cloud. `;
+                msg += `Check if 'start_truthlens.ps1' is running and Supabase secrets are configured.`;
+              } else {
+                msg = `GATEWAY_FAILURE: Both the cloud tunnel and local gateway failed to respond. Check backend logs.`;
               }
 
               throw new Error(msg);
             }
           } else {
-            throw new Error(`CONNECTION_FAILURE: Could not reach the forensic gateway at ${apiUrl}. Node Status: ${nodeStatus.toUpperCase()}.`);
+            throw new Error(`NODE_UNREACHABLE: Could not connect to forensic gateway at ${apiUrl}. Status: ${nodeStatus.toUpperCase()}.`);
           }
         }
 
